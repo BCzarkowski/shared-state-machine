@@ -1,23 +1,46 @@
-use std::io::{Read, Write};
-use std::net::TcpListener;
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    net::TcpListener,
+    sync::broadcast,
+};
 
-fn main() -> std::io::Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:7878")?;
+pub async fn run_server() {
+    let listener = TcpListener::bind("127.0.0.1:7878").await.unwrap();
     println!("Server is listening on 127.0.0.1:7878.");
 
-    for stream in listener.incoming() {
-        let mut stream = stream?;
-        println!("Connection opened.");
+    let (tx, _rx) = broadcast::channel(10);
 
-        let mut buffer = [0; 512];
-        let bytes_read = stream.read(&mut buffer)?;
-        let message = String::from_utf8_lossy(&buffer[..bytes_read]);
-        println!("Received: {}", message);
+    loop {
+        let (mut socket, addr) = listener.accept().await.unwrap();
 
-        let response = format!("[echo]: {}", message);
-        stream.write_all(response.as_bytes())?;
-        println!("Sent: {}", response);
+        let tx = tx.clone();
+        let mut rx = tx.subscribe();
+
+        tokio::spawn(async move {
+            let (reader, mut writer) = socket.split();
+
+            let mut reader = BufReader::new(reader);
+            let mut line = String::new();
+
+            loop {
+                tokio::select! {
+                    bytes_read = reader.read_line(&mut line) => {
+                        if bytes_read.unwrap() == 0 {
+                            break;
+                        }
+
+                        tx.send((line.clone(), addr)).unwrap();
+                        line.clear();
+                    }
+                    message = rx.recv() => {
+                        let (message, sender) = message.unwrap();
+
+                        if sender != addr {
+                            writer.write_all(message.as_bytes()).await.unwrap();
+                        }
+                    }
+                }
+            }
+        });
     }
-
-    Ok(())
 }
