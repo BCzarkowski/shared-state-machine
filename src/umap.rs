@@ -7,18 +7,22 @@ pub struct UMap<K: Eq + Hash, T> {
     map: HashMap<K, T>,
 }
 
-pub enum UMapUpdate<K: Eq + Hash, T> {
+pub enum UMapUpdate<K: Eq + Hash, T, U> {
     Insert(K, T),
     Remove(K),
+    NestedUpdate(K, U),
 }
 
-impl<K: Eq + Hash, T> Updatable for UMap<K, T> {
-    type Update = UMapUpdate<K, T>;
+impl<K: Eq + Hash, T, U> Updatable for UMap<K, T> {
+    type Update = UMapUpdate<K, T, U>;
 
     fn apply_update(&mut self, update: Self::Update) {
         match update {
             UMapUpdate::Insert(key, value) => self.map.insert(key, value),
             UMapUpdate::Remove(key) => self.map.remove(&key),
+            UMapUpdate::NestedUpdate(key, nested_update) => {
+                self.map.get_mut(&key).unwrap().apply_update(nested_update)
+            }
         };
         ()
     }
