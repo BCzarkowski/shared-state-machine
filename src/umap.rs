@@ -54,12 +54,6 @@ impl<K: Eq + Hash, T: Updatable> UMap<K, T> {
         self.map.get(key)
     }
 
-    pub fn create_recursive(&self, key: K, update: T::Update) -> UMapUpdate<K, T> {
-        UMapUpdate::Nested(key, update)
-    }
-}
-
-impl<K: Eq + Hash, T: Updatable> UMap<K, T> {
     pub fn get_wrapped(
         &self,
         key: K,
@@ -70,7 +64,7 @@ impl<K: Eq + Hash, T: Updatable> UMap<K, T> {
     > {
         StructureWrapper {
             structure: self.get(&key).unwrap(),
-            outside_wrapper: move |update| self.create_recursive(key, update),
+            outside_wrapper: move |update| UMapUpdate::Nested(key, update),
         }
     }
 }
@@ -80,6 +74,10 @@ impl<K: Eq + Hash, T: Updatable, O, F: FnOnce(UMapUpdate<K, T>) -> O>
 {
     pub fn insert(self, key: K, value: T) -> O {
         (self.outside_wrapper)(self.structure.insert(key, value))
+    }
+
+    pub fn remove(self, key: K) -> O {
+        (self.outside_wrapper)(self.structure.remove(key))
     }
 }
 
@@ -115,20 +113,6 @@ mod tests {
 
     #[test]
     fn recursive_operations() {
-        let mut umap: UMap<String, UMap<String, i32>> = UMap::new();
-        let foo = String::from("foo");
-        let bar = String::from("bar");
-
-        umap.apply_update(umap.insert(foo.clone(), UMap::new()));
-        let inner_update = umap.get(&foo).unwrap().insert(bar.clone(), 5);
-        let recursive_update = umap.create_recursive(foo.clone(), inner_update);
-
-        umap.apply_update(recursive_update);
-        assert_eq!(umap.get(&foo).unwrap().get(&bar).unwrap(), &5);
-    }
-
-    #[test]
-    fn wrapped_operations() {
         let mut umap: UMap<String, UMap<String, i32>> = UMap::new();
         let foo = String::from("foo");
         let bar = String::from("bar");
