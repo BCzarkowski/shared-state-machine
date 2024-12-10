@@ -1,3 +1,4 @@
+use crate::recursive_structure_wrapper::StructureWrapper;
 use crate::update;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -7,14 +8,14 @@ pub struct UMap<K: Eq + Hash, T: Updatable> {
     map: HashMap<K, T>,
 }
 
-pub enum UMapUpdate<K: Eq + Hash, T: Updatable, U> {
+pub enum UMapUpdate<K: Eq + Hash, T: Updatable> {
     Insert(K, T),
     Remove(K),
-    Nested(K, U),
+    Nested(K, T::Update),
 }
 
 impl<K: Eq + Hash, T: Updatable> Updatable for UMap<K, T> {
-    type Update = UMapUpdate<K, T, T::Update>;
+    type Update = UMapUpdate<K, T>;
 
     fn apply_update(&mut self, update: Self::Update) {
         match update {
@@ -41,11 +42,11 @@ impl<K: Eq + Hash, T: Updatable> UMap<K, T> {
         }
     }
 
-    pub fn insert(&self, key: K, value: T) -> UMapUpdate<K, T, T::Update> {
+    pub fn insert(&self, key: K, value: T) -> UMapUpdate<K, T> {
         UMapUpdate::Insert(key, value)
     }
 
-    pub fn remove(&self, key: K) -> UMapUpdate<K, T, T::Update> {
+    pub fn remove(&self, key: K) -> UMapUpdate<K, T> {
         UMapUpdate::Remove(key)
     }
 
@@ -53,19 +54,31 @@ impl<K: Eq + Hash, T: Updatable> UMap<K, T> {
         self.map.get(key)
     }
 
-    pub fn create_recursive(&self, key: K, update: T::Update) -> UMapUpdate<K, T, T::Update> {
-        UMapUpdate::Nested(key, update)
+    pub fn get_wrapped(
+        &self,
+        key: K,
+    ) -> StructureWrapper<
+        T,
+        UMapUpdate<K, T>,
+        impl FnOnce(T::Update) -> UMapUpdate<K, T> + use<'_, K, T>,
+    > {
+        StructureWrapper {
+            structure: self.get(&key).unwrap(),
+            outside_wrapper: move |update| UMapUpdate::Nested(key, update),
+        }
     }
 }
 
-// impl Updatable for String {
-//     type Update = ();
-//     fn apply_update(&mut self, update: Self::Update) {}
-// }
+impl<K: Eq + Hash, T: Updatable, O, F: FnOnce(UMapUpdate<K, T>) -> O>
+    StructureWrapper<'_, UMap<K, T>, O, F>
+{
+    pub fn insert(self, key: K, value: T) -> O {
+        (self.outside_wrapper)(self.structure.insert(key, value))
+    }
 
-impl Updatable for i32 {
-    type Update = ();
-    fn apply_update(&mut self, update: Self::Update) {}
+    pub fn remove(self, key: K) -> O {
+        (self.outside_wrapper)(self.structure.remove(key))
+    }
 }
 
 #[cfg(test)]
@@ -75,25 +88,27 @@ mod tests {
     #[test]
     fn simple_operations() {
         let mut umap: UMap<String, i32> = UMap::new();
-        let insert_5 = umap.insert(String::from("foo"), 5);
-        let insert_7 = umap.insert(String::from("bar"), 7);
-        let remove_5 = umap.remove(String::from("foo"));
-        let remove_7 = umap.remove(String::from("bar"));
+        let foo = String::from("foo");
+        let bar = String::from("bar");
+        let insert_5 = umap.insert(foo.clone(), 5);
+        let insert_7 = umap.insert(bar.clone(), 7);
+        let remove_5 = umap.remove(foo.clone());
+        let remove_7 = umap.remove(bar.clone());
 
-        assert_eq!(umap.get(&String::from("foo")), None);
-        assert_eq!(umap.get(&String::from("bar")), None);
+        assert_eq!(umap.get(&foo), None);
+        assert_eq!(umap.get(&bar), None);
         umap.apply_update(insert_5);
-        assert_eq!(umap.get(&String::from("foo")), Some(&5));
-        assert_eq!(umap.get(&String::from("bar")), None);
+        assert_eq!(umap.get(&foo), Some(&5));
+        assert_eq!(umap.get(&bar), None);
         umap.apply_update(insert_7);
-        assert_eq!(umap.get(&String::from("foo")), Some(&5));
-        assert_eq!(umap.get(&String::from("bar")), Some(&7));
+        assert_eq!(umap.get(&foo), Some(&5));
+        assert_eq!(umap.get(&bar), Some(&7));
         umap.apply_update(remove_5);
-        assert_eq!(umap.get(&String::from("foo")), None);
-        assert_eq!(umap.get(&String::from("bar")), Some(&7));
+        assert_eq!(umap.get(&foo), None);
+        assert_eq!(umap.get(&bar), Some(&7));
         umap.apply_update(remove_7);
-        assert_eq!(umap.get(&String::from("foo")), None);
-        assert_eq!(umap.get(&String::from("bar")), None);
+        assert_eq!(umap.get(&foo), None);
+        assert_eq!(umap.get(&bar), None);
     }
 
     #[test]
@@ -101,12 +116,9 @@ mod tests {
         let mut umap: UMap<String, UMap<String, i32>> = UMap::new();
         let foo = String::from("foo");
         let bar = String::from("bar");
-
         umap.apply_update(umap.insert(foo.clone(), UMap::new()));
-        let inner_update = umap.get(&foo).unwrap().insert(bar.clone(), 5);
-        let recursive_update = umap.create_recursive(foo.clone(), inner_update);
 
-        umap.apply_update(recursive_update);
+        umap.apply_update(umap.get_wrapped(foo.clone()).insert(bar.clone(), 5));
         assert_eq!(umap.get(&foo).unwrap().get(&bar).unwrap(), &5);
     }
 }
