@@ -1,3 +1,5 @@
-pub trait Update<T> {
-    fn apply_update(self, item: &mut T);
+pub trait Updatable {
+    type Update;
+
+    fn apply_update(&mut self, update: Self::Update);
 }
