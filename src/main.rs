@@ -1,10 +1,10 @@
 use umap::UMap;
 use update::Updatable;
-//use ustack::UStack;
+use ustack::UStack;
 
 mod umap;
 mod update;
-//mod ustack;
+mod ustack;
 
 fn main() {
     // let mut ustack: UStack<i32> = UStack::new();
