@@ -1,24 +1,24 @@
 use umap::UMap;
 use update::Updatable;
-use ustack::UStack;
+//use ustack::UStack;
 
 mod umap;
 mod update;
-mod ustack;
+//mod ustack;
 
 fn main() {
-    let mut ustack: UStack<i32> = UStack::new();
-    let push_5 = ustack.push(5);
-    let pop = ustack.pop();
+    // let mut ustack: UStack<i32> = UStack::new();
+    // let push_5 = ustack.push(5);
+    // let pop = ustack.pop();
 
-    ustack.apply_update(push_5);
-    println!("Current top: {}", ustack.top());
-    let push_7 = ustack.push(7);
-    println!("Current top: {}", ustack.top());
-    ustack.apply_update(push_7);
-    println!("Current top: {}", ustack.top());
-    ustack.apply_update(pop);
-    println!("Current top: {}", ustack.top());
+    // ustack.apply_update(push_5);
+    // println!("Current top: {}", ustack.top());
+    // let push_7 = ustack.push(7);
+    // println!("Current top: {}", ustack.top());
+    // ustack.apply_update(push_7);
+    // println!("Current top: {}", ustack.top());
+    // ustack.apply_update(pop);
+    // println!("Current top: {}", ustack.top());
 
     let mut umap: UMap<String, i32> = UMap::new();
     let insert_5 = umap.insert(String::from("foo"), 5);
