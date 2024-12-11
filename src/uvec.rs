@@ -1,10 +1,12 @@
 use crate::update;
+use serde::{Deserialize, Serialize};
 use update::Updatable;
 
 pub struct UVec<T: Updatable> {
     vec: Vec<T>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum UVecUpdate<T: Updatable> {
     Clear,
     Insert(usize, T),
