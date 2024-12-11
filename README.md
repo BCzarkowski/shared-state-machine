@@ -11,6 +11,8 @@ Enable multiple clients to share a single state structure.
 2. Each structure is modified through a stream of events/updates, ensuring consistency.
 3. Clients can subscribe to the server's update queue.
 4. From the client's perspective, the exposed state structure behaves like a typical data structure.
+5. Updates are serializable using `serde`, allowing them to be sent over the network.
+6. Nested updates are supported, with operations on them having size and complexity proportional to the modifications.
 
 ## Implementation details
 1. **State Modification and Broadcasting**:
