@@ -63,4 +63,3 @@ impl<T: Updatable> UStack<T> {
         UStackUpdate::Nested(update)
     }
 }
-
