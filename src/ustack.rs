@@ -19,19 +19,18 @@ impl<T: Updatable> Updatable for UStack<T> {
             UStackUpdate::Push(value) => {
                 self.stack.push(value);
                 ()
-            },
+            }
             UStackUpdate::Pop => {
                 if self.stack.is_empty() {
                     panic!("Update tried to pop from an empty stack!");
                 } else {
                     self.stack.pop();
                 }
-            },
+            }
             UStackUpdate::Nested(nested_update) => {
                 if self.stack.is_empty() {
                     panic!("Nested update on empty stack!");
-                }
-                else {
+                } else {
                     self.stack.last_mut().unwrap().apply_update(nested_update);
                 }
             }
@@ -92,7 +91,7 @@ mod tests {
 
         let inner_update = ustack.top_mut().push(5);
         let recursive_update = ustack.create_recursive(inner_update);
-        
+
         ustack.apply_update(recursive_update);
         assert_eq!(*ustack.top().top(), 5);
     }
