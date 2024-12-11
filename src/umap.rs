@@ -1,5 +1,6 @@
 use crate::recursive_structure_wrapper::StructureWrapper;
 use crate::update;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
 use update::Updatable;
@@ -8,6 +9,7 @@ pub struct UMap<K: Eq + Hash, T: Updatable> {
     map: HashMap<K, T>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum UMapUpdate<K: Eq + Hash, T: Updatable> {
     Insert(K, T),
     Remove(K),

@@ -1,10 +1,12 @@
 use crate::update;
+use serde::{Deserialize, Serialize};
 use update::Updatable;
 
 pub struct UStack<T: Updatable> {
     stack: Vec<T>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum UStackUpdate<T: Updatable> {
     Push(T),
     Pop,
