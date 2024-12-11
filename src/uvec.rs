@@ -6,9 +6,12 @@ pub struct UVec<T: Updatable> {
 }
 
 pub enum UVecUpdate<T: Updatable> {
-    Push(T),
+    Clear,
+    Insert(usize, T),
     Pop,
-    Nested(T::Update),
+    Push(T),
+    Remove(usize),
+    Nested(usize, T::Update),
 }
 
 impl<T: Updatable> Updatable for UVec<T> {
@@ -16,6 +19,18 @@ impl<T: Updatable> Updatable for UVec<T> {
 
     fn apply_update(&mut self, update: Self::Update) {
         match update {
+            UVecUpdate::Clear => {
+                self.vec.clear();
+                ()
+            }
+            UVecUpdate::Insert(index, value) => {
+                self.vec.insert(index, value);
+                ()
+            }
+            UVecUpdate::Remove(index) => {
+                self.vec.remove(index);
+                ()
+            }
             UVecUpdate::Push(value) => {
                 self.vec.push(value);
                 ()
@@ -27,11 +42,11 @@ impl<T: Updatable> Updatable for UVec<T> {
                     self.vec.pop();
                 }
             }
-            UVecUpdate::Nested(nested_update) => {
-                if self.vec.is_empty() {
-                    panic!("Nested update on empty vector!");
+            UVecUpdate::Nested(index, nested_update) => {
+                if index >= self.vec.len() {
+                    panic!("Index is greater then vector length!");
                 } else {
-                    self.vec.last_mut().unwrap().apply_update(nested_update);
+                    self.vec[index].apply_update(nested_update);
                 }
             }
         }
@@ -43,6 +58,18 @@ impl<T: Updatable> UVec<T> {
         UVec { vec: Vec::new() }
     }
 
+    pub fn clear(&self) -> UVecUpdate<T> {
+        UVecUpdate::Clear
+    }
+
+    pub fn insert(&self, index: usize, value: T) -> UVecUpdate<T> {
+        UVecUpdate::Insert(index, value)
+    }
+
+    pub fn remove(&self, index: usize) -> UVecUpdate<T> {
+        UVecUpdate::Remove(index)
+    }
+
     pub fn push(&self, value: T) -> UVecUpdate<T> {
         UVecUpdate::Push(value)
     }
@@ -51,15 +78,27 @@ impl<T: Updatable> UVec<T> {
         UVecUpdate::Pop
     }
 
-    pub fn top(&self) -> &T {
+    pub fn get(&self, index: usize) -> &T {
+        self.vec.get(index).unwrap()
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> &mut T {
+        self.vec.get_mut(index).unwrap()
+    }
+
+    pub fn last(&self) -> &T {
         self.vec.last().unwrap()
     }
 
-    pub fn top_mut(&mut self) -> &mut T {
+    pub fn last_mut(&mut self) -> &mut T {
         self.vec.last_mut().unwrap()
     }
 
-    pub fn create_recursive(&self, update: T::Update) -> UVecUpdate<T> {
-        UVecUpdate::Nested(update)
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+
+    pub fn create_recursive(&self, index: usize, update: T::Update) -> UVecUpdate<T> {
+        UVecUpdate::Nested(index, update)
     }
 }

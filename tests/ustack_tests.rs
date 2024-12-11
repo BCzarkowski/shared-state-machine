@@ -1,5 +1,5 @@
-use shared_state_machine::ustack::UStack;
 use shared_state_machine::update::Updatable;
+use shared_state_machine::ustack::UStack;
 
 #[cfg(test)]
 mod tests {
