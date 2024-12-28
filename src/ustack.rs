@@ -21,7 +21,6 @@ impl<T: Updatable> Updatable for UStack<T> {
         match update {
             UStackUpdate::Push(value) => {
                 self.stack.push(value);
-                ()
             }
             UStackUpdate::Pop => {
                 if self.stack.is_empty() {
@@ -38,6 +37,12 @@ impl<T: Updatable> Updatable for UStack<T> {
                 }
             }
         }
+    }
+}
+
+impl<T: Updatable> Default for UStack<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

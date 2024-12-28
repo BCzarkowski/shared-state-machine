@@ -23,19 +23,15 @@ impl<T: Updatable> Updatable for UVec<T> {
         match update {
             UVecUpdate::Clear => {
                 self.vec.clear();
-                ()
             }
             UVecUpdate::Insert(index, value) => {
                 self.vec.insert(index, value);
-                ()
             }
             UVecUpdate::Remove(index) => {
                 self.vec.remove(index);
-                ()
             }
             UVecUpdate::Push(value) => {
                 self.vec.push(value);
-                ()
             }
             UVecUpdate::Pop => {
                 if self.vec.is_empty() {
@@ -52,6 +48,12 @@ impl<T: Updatable> Updatable for UVec<T> {
                 }
             }
         }
+    }
+}
+
+impl<T: Updatable> Default for UVec<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

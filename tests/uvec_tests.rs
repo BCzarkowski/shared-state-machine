@@ -34,7 +34,7 @@ mod tests {
         assert_eq!(*uvec.get(0), 0);
 
         uvec.apply_update(clear);
-        assert_eq!(uvec.is_empty(), true);
+        assert!(uvec.is_empty());
     }
 
     #[test]
@@ -48,6 +48,6 @@ mod tests {
 
         uvec.apply_update(recursive_update);
         assert_eq!(*uvec.get(0).last(), 5);
-        assert_eq!(uvec.get(1).is_empty(), true);
+        assert!(uvec.get(1).is_empty());
     }
 }
