@@ -2,11 +2,12 @@ use crate::update;
 use serde::{Deserialize, Serialize};
 use update::Updatable;
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UStack<T: Updatable> {
     stack: Vec<T>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum UStackUpdate<T: Updatable> {
     Push(T),
     Pop,
@@ -20,7 +21,6 @@ impl<T: Updatable> Updatable for UStack<T> {
         match update {
             UStackUpdate::Push(value) => {
                 self.stack.push(value);
-                ()
             }
             UStackUpdate::Pop => {
                 if self.stack.is_empty() {
@@ -37,6 +37,12 @@ impl<T: Updatable> Updatable for UStack<T> {
                 }
             }
         }
+    }
+}
+
+impl<T: Updatable> Default for UStack<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

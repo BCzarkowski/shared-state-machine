@@ -23,17 +23,20 @@ impl<K: Eq + Hash, T: Updatable> Updatable for UMap<K, T> {
         match update {
             UMapUpdate::Insert(key, value) => {
                 self.map.insert(key, value);
-                ()
             }
             UMapUpdate::Remove(key) => {
                 self.map.remove(&key);
-                ()
             }
             UMapUpdate::Nested(key, upd) => {
                 self.map.get_mut(&key).unwrap().apply_update(upd);
-                ()
             }
         }
+    }
+}
+
+impl<K: Eq + Hash, T: Updatable> Default for UMap<K, T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -62,7 +65,7 @@ impl<K: Eq + Hash, T: Updatable> UMap<K, T> {
     ) -> StructureWrapper<
         T,
         UMapUpdate<K, T>,
-        impl FnOnce(T::Update) -> UMapUpdate<K, T> + use<'_, K, T>,
+        impl FnOnce(T::Update) -> UMapUpdate<K, T>, // + use<'_, K, T>,
     > {
         StructureWrapper {
             structure: self.get(&key).unwrap(),
