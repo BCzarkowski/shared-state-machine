@@ -1,10 +1,10 @@
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::TcpListener,
     sync::broadcast,
 };
 
-pub async fn run_server() {
+async fn run_server() {
     let listener = TcpListener::bind("127.0.0.1:7878").await.unwrap();
     println!("Server is listening on 127.0.0.1:7878.");
 
@@ -14,33 +14,48 @@ pub async fn run_server() {
         let (mut socket, addr) = listener.accept().await.unwrap();
 
         let tx = tx.clone();
-        let mut rx = tx.subscribe();
+        let rx = tx.subscribe();
 
         tokio::spawn(async move {
-            let (reader, mut writer) = socket.split();
+            let (reader, writer) = socket.split();
 
-            let mut reader = BufReader::new(reader);
-            let mut line = String::new();
-
-            loop {
-                tokio::select! {
-                    bytes_read = reader.read_line(&mut line) => {
-                        if bytes_read.unwrap() == 0 {
-                            break;
-                        }
-
-                        tx.send((line.clone(), addr)).unwrap();
-                        line.clear();
-                    }
-                    message = rx.recv() => {
-                        let (message, sender) = message.unwrap();
-
-                        if sender != addr {
-                            writer.write_all(message.as_bytes()).await.unwrap();
-                        }
-                    }
-                }
-            }
+            handle_connection(reader, writer, addr, tx, rx)
+                .await
+                .expect("Failed to handle connection.");
         });
+    }
+}
+
+pub async fn handle_connection<Reader, Writer>(
+    reader: Reader,
+    mut writer: Writer,
+    addr: std::net::SocketAddr,
+    tx: broadcast::Sender<(String, std::net::SocketAddr)>,
+    mut rx: broadcast::Receiver<(String, std::net::SocketAddr)>,
+) -> std::io::Result<()>
+where
+    Reader: AsyncRead + Unpin,
+    Writer: AsyncWrite + Unpin,
+{
+    let mut reader = BufReader::new(reader);
+    let mut line = String::new();
+
+    loop {
+        tokio::select! {
+            bytes_read = reader.read_line(&mut line) => {
+                if bytes_read.unwrap() == 0 {
+                    break Ok(());
+                }
+                println!("Received: {}", line);
+                tx.send((line.clone(), addr)).unwrap();
+                line.clear();
+            }
+            message = rx.recv() => {
+                let (message, _sender) = message.unwrap();
+
+                println!("Sending: {}", message);
+                writer.write_all(message.as_bytes()).await.unwrap();
+            }
+        }
     }
 }
