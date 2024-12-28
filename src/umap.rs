@@ -62,7 +62,7 @@ impl<K: Eq + Hash, T: Updatable> UMap<K, T> {
     ) -> StructureWrapper<
         T,
         UMapUpdate<K, T>,
-        impl FnOnce(T::Update) -> UMapUpdate<K, T>,// + use<'_, K, T>,
+        impl FnOnce(T::Update) -> UMapUpdate<K, T>, // + use<'_, K, T>,
     > {
         StructureWrapper {
             structure: self.get(&key).unwrap(),
