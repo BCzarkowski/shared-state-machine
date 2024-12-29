@@ -9,13 +9,6 @@ mod tests {
     fn two_clients() {
         // let server: Server = Server::new(7878);
 
-        // // How is the map initialized? Does one of the clients have to be an initial
-        // // client or do we have some notion of a default constructor and we don't have
-        // // any other ways of construction. This way we could implement some logic where
-        // // the client default-constructs the object, reads updates from the server thus
-        // // building up the state and then proceeds.
-
-        // // Port 7878, structure_id = 1
         // let mut map1: SMap<String, i32> = SMap::new(7878, 1);
         // let mut map2: SMap<String, i32> = SMap::new(7878, 1);
         // let foo = String::from("foo");
