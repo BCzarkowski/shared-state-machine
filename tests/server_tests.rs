@@ -1,14 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use shared_state_machine::messages::ClientMessage;
+use shared_state_machine::server::Server;
+use shared_state_machine::umessage::UMessage;
+use shared_state_machine::ustack::UStack;
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::{TcpListener, TcpStream},
     sync::broadcast,
 };
-use shared_state_machine::umessage::UMessage;
-use shared_state_machine::messages::ClientMessage;
-use shared_state_machine::server::{run_server_with_state, ServerState};
-use shared_state_machine::ustack::UStack;
 
 #[cfg(test)]
 mod tests {
@@ -24,11 +23,9 @@ mod tests {
         // (5) TODO: Refusing to update when not correct.
 
         //-- (1) --//
-        let server_state: Arc<Mutex<ServerState>> = Arc::new(Mutex::new(ServerState::new()));
-        let server_state_clone = server_state.clone();
-
         tokio::spawn(async move {
-            run_server_with_state(server_state_clone).await;
+            let server = Server::new(7878);
+            server.run().await;
         });
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
@@ -47,13 +44,18 @@ mod tests {
         client1.write_all(join1.as_bytes()).await.unwrap();
         client2.write_all(join1.as_bytes()).await.unwrap();
 
-
         let ustack: UStack<i32> = UStack::new();
         let push_5 = ustack.push(5);
 
-        let update1 = serde_json::to_string(&ClientMessage::Update(UMessage::new(1, 1,&push_5).unwrap())).unwrap();
+        let update1 = serde_json::to_string(&ClientMessage::Update(
+            UMessage::new(1, 1, &push_5).unwrap(),
+        ))
+        .unwrap();
         let update1 = format!("{}\n", update1);
-        let update2 = serde_json::to_string(&ClientMessage::Update(UMessage::new(1, 1,&push_5).unwrap())).unwrap();
+        let update2 = serde_json::to_string(&ClientMessage::Update(
+            UMessage::new(1, 1, &push_5).unwrap(),
+        ))
+        .unwrap();
         let update2 = format!("{}\n", update2);
 
         client1.write_all(update1.as_bytes()).await.unwrap();
@@ -104,7 +106,10 @@ mod tests {
         line.clear();
 
         // Client 3 sends a message and only him should receive it.
-        let update3 = serde_json::to_string(&ClientMessage::Update(UMessage::new(1, 1,&push_5).unwrap())).unwrap();
+        let update3 = serde_json::to_string(&ClientMessage::Update(
+            UMessage::new(1, 1, &push_5).unwrap(),
+        ))
+        .unwrap();
         let update3 = format!("{}\n", update3);
 
         client3.write_all(update3.as_bytes()).await.unwrap();
