@@ -1,4 +1,4 @@
-use crate::recursive_structure_wrapper::StructureWrapper;
+use crate::unested::UNested;
 use crate::update;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -59,29 +59,25 @@ impl<K: Eq + Hash, T: Updatable> UMap<K, T> {
         self.map.get(key)
     }
 
-    pub fn get_wrapped(
+    pub fn get_mut(
         &self,
         key: K,
-    ) -> StructureWrapper<
-        T,
-        UMapUpdate<K, T>,
-        impl FnOnce(T::Update) -> UMapUpdate<K, T>, // + use<'_, K, T>,
-    > {
-        StructureWrapper {
-            structure: self.get(&key).unwrap(),
-            outside_wrapper: move |update| UMapUpdate::Nested(key, update),
+    ) -> UNested<T, UMapUpdate<K, T>, impl FnOnce(T::Update) -> UMapUpdate<K, T>> {
+        UNested {
+            nested: self.get(&key).unwrap(),
+            apply_outer: move |update| UMapUpdate::Nested(key, update),
         }
     }
 }
 
 impl<K: Eq + Hash, T: Updatable, O, F: FnOnce(UMapUpdate<K, T>) -> O>
-    StructureWrapper<'_, UMap<K, T>, O, F>
+    UNested<'_, UMap<K, T>, O, F>
 {
     pub fn insert(self, key: K, value: T) -> O {
-        (self.outside_wrapper)(self.structure.insert(key, value))
+        (self.apply_outer)(self.nested.insert(key, value))
     }
 
     pub fn remove(self, key: K) -> O {
-        (self.outside_wrapper)(self.structure.remove(key))
+        (self.apply_outer)(self.nested.remove(key))
     }
 }

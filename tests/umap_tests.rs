@@ -38,7 +38,7 @@ mod tests {
         let bar = String::from("bar");
         umap.apply_update(umap.insert(foo.clone(), UMap::new()));
 
-        umap.apply_update(umap.get_wrapped(foo.clone()).insert(bar.clone(), 5));
+        umap.apply_update(umap.get_mut(foo.clone()).insert(bar.clone(), 5));
         assert_eq!(umap.get(&foo).unwrap().get(&bar).unwrap(), &5);
     }
 }
