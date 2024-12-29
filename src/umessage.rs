@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UMessage {
     group_id: u32,
     packet_id: u32,
-    update: String,
+    pub update: String,
 }
 
 impl UMessage {

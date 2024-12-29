@@ -7,13 +7,17 @@ use tokio::{
     net::TcpListener,
     sync::broadcast,
 };
+use serde_json::Result as SerdeResult;
+use crate::messages;
+use crate::umessage::UMessage;
+use messages::{ClientMessage, ServerMessage};
 
 #[derive(Debug)]
 pub struct Group {
     id: u32,
-    broadcast_tx: broadcast::Sender<String>,
+    broadcast_tx: broadcast::Sender<ServerMessage>,
     current_packet_number: u32,
-    updates_history: Vec<String>,
+    updates_history: Vec<ServerMessage>,
 }
 
 #[derive(Debug)]
@@ -71,7 +75,25 @@ where
         return Ok(());
     }
 
-    let group_id: u32 = line.trim().parse().unwrap();
+    let group_id = match serde_json::from_str::<ClientMessage>(&line) {
+        Ok(message) => {
+            println!("Deserialized message: {:?}", message);
+            match message {
+                ClientMessage::JoinGroup(group_id)=> group_id,
+                _ => {
+                    eprintln!("Unexpected message from client: {:?}", message);
+                    // return Ok(());
+                    0
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to deserialize message from: {}", e);
+            0
+        }
+    };
+
+    // let group_id: u32 = line.trim().parse().unwrap();
     line.clear();
 
     // Retrieve or create the group
@@ -98,6 +120,7 @@ where
         group_lock.updates_history.clone()
     };
     for update in history {
+        let update = serde_json::to_string(&update).unwrap();
         let update = format!("{}\n", update);
         writer.write_all(update.as_bytes()).await?;
     }
@@ -115,17 +138,38 @@ where
                 if bytes_read.unwrap() == 0 {
                     break Ok(());
                 }
-                let update = line.trim().to_string();
-                line.clear();
+                // let update = line.trim().to_string();
+                // line.clear();
 
+                let umessage = match serde_json::from_str::<ClientMessage>(&line) {
+                    Ok(message) => {
+                        println!("Deserialized message: {:?}", message);
+                        match message {
+                            ClientMessage::Update(umessage)=> umessage,
+                            _ => {
+                                eprintln!("Unexpected message from client: {:?}", message);
+                                return Ok(());
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to deserialize message from: {}", e);
+                        return Ok(());
+                    }
+                };
+                
                 // Create a new update and broadcast it
                 let mut group_lock = group.lock().unwrap();
                 group_lock.current_packet_number += 1;
-                group_lock.updates_history.push(update.clone());
-                tx.send(format!("{}\n", update)).unwrap();
+                let umessage = ServerMessage::Update(umessage);
+                group_lock.updates_history.push(umessage.clone());
+                tx.send(umessage).unwrap();
+                line.clear();
             }
             message = rx.recv() => {
                 let update = message.unwrap();
+                let update = serde_json::to_string(&update).unwrap();
+                let update = format!("{}\n", update);
                 writer.write_all(update.as_bytes()).await?;
             }
         }
