@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
-    net::TcpListener,
+    net::{TcpListener, TcpStream},
     sync::broadcast,
 };
 
@@ -12,7 +11,6 @@ use shared_state_machine::server::{run_server_with_state, ServerState};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::net::TcpStream;
 
     #[tokio::test]
     async fn test_group_creation_and_update_broadcast() {

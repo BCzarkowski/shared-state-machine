@@ -1,3 +1,4 @@
+pub mod messages;
 pub mod recursive_structure_wrapper;
 pub mod server;
 pub mod umap;

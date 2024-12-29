@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::umessage;
+use serde::{Deserialize, Serialize};
 use umessage::UMessage;
 
 #[derive(Serialize, Deserialize, Debug)]
