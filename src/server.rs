@@ -210,18 +210,20 @@ impl Server {
             }
         };
 
-        serialized
-            .send(json!(ServerMessage::Correct))
-            .await
-            .unwrap();
-
-        {
+        let server_response = {
             let mut group_lock = group.lock().unwrap();
-            group_lock.current_packet_number += 1;
-            let umessage = ServerMessage::Update(umessage);
-            group_lock.updates_history.push(umessage.clone());
-            tx.send(umessage).unwrap();
-        }
+            if umessage.packet_id != group_lock.current_packet_number {
+                ServerMessage::Error
+            } else {
+                group_lock.current_packet_number += 1;
+                let umessage = ServerMessage::Update(umessage);
+                group_lock.updates_history.push(umessage.clone());
+                tx.send(umessage).unwrap();
+                ServerMessage::Correct
+            }
+        };
+
+        serialized.send(json!(server_response)).await.unwrap();
 
         Ok(())
     }

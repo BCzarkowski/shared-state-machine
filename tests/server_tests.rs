@@ -113,7 +113,7 @@ mod tests {
         let ustack: UStack<i32> = UStack::new();
         let push_5 = ustack.push(5);
 
-        let update1 = &ClientMessage::Update(UMessage::new(1, 1, &push_5).unwrap());
+        let update1 = &ClientMessage::Update(UMessage::new(1, 0, &push_5).unwrap());
         let update2 = ClientMessage::Update(UMessage::new(1, 1, &push_5).unwrap());
 
         writer1.send(json!(update1)).await.unwrap();
@@ -145,7 +145,7 @@ mod tests {
 
         // Client 2 should receive update.
         let msg = reader2.try_next().await.unwrap().unwrap();
-        assert_eq!(msg, json!(update1));
+        assert_eq!(msg, json!(update2));
 
         //-- (4) --//
         // Client 4 connects to group 1.
@@ -160,11 +160,16 @@ mod tests {
         assert_eq!(msg, json!(update2));
 
         // Client 3 sends a message and only him should receive it.
-        let update3 = ClientMessage::Update(UMessage::new(1, 1, &push_5).unwrap());
+        let update3 = ClientMessage::Update(UMessage::new(1, 0, &push_5).unwrap());
         writer3.send(json!(update3)).await.unwrap();
         let msg = reader3.try_next().await.unwrap().unwrap();
         assert_eq!(msg, json!(ServerMessage::Correct));
         let msg = reader3.try_next().await.unwrap().unwrap();
         assert_eq!(msg, json!(update3));
+
+        let update4 = ClientMessage::Update(UMessage::new(1, 0, &push_5).unwrap());
+        writer3.send(json!(update4)).await.unwrap();
+        let msg = reader3.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(ServerMessage::Error));
     }
 }

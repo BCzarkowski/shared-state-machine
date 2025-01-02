@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UMessage {
     group_id: u32,
-    packet_id: u32,
+    pub packet_id: u32,
     pub update: String,
 }
 
