@@ -8,9 +8,14 @@ use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
-    net::TcpListener,
+    net::{TcpListener, TcpStream},
     sync::broadcast,
 };
+
+use futures::prelude::*;
+use serde_json::{json, Value};
+use tokio_serde::formats::*;
+use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 #[derive(Debug)]
 pub struct Group {
@@ -62,33 +67,115 @@ impl Server {
             .unwrap();
 
         loop {
-            let (mut socket, _addr) = listener.accept().await.unwrap();
+            let (socket, _) = listener.accept().await.unwrap();
             let state = self.state.clone();
-
             tokio::spawn(async move {
-                let (reader, writer) = socket.split();
-
-                if let Err(e) = Server::handle_connection(reader, writer, state).await {
+                if let Err(e) = Server::handle_connection(socket, state).await {
                     eprintln!("Connection handling failed: {}", e);
                 }
             });
         }
     }
 
-    async fn handle_connection<Reader, Writer>(
-        reader: Reader,
-        mut writer: Writer,
+    async fn handle_connection(
+        socket: TcpStream,
         state: Arc<Mutex<ServerState>>,
-    ) -> std::io::Result<()>
-    where
-        Reader: AsyncRead + Unpin,
-        Writer: AsyncWrite + Unpin,
-    {
-        let mut reader = BufReader::new(reader);
-        let group_id = Self::read_group_id(&mut reader).await?;
+    ) -> std::io::Result<()> {
+        let (reader, writer) = socket.into_split();
+        let mut deserialized = {
+            let length_delimited = FramedRead::new(reader, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(
+                length_delimited,
+                SymmetricalJson::<Value>::default(),
+            )
+        };
+        let mut serialized = {
+            let length_delimited = FramedWrite::new(writer, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(length_delimited, SymmetricalJson::default())
+        };
+
+        // GROUP ID BEGIN
+        // let mut reader = BufReader::new(reader);
+        // let group_id = Self::read_group_id(&mut reader).await?;
+        let group_id = {
+            let message = deserialized.try_next().await.unwrap();
+            match message {
+                Some(value) => {
+                    let client_message: ClientMessage = serde_json::from_value(value).unwrap();
+                    match client_message {
+                        ClientMessage::JoinGroup(group_id) => group_id,
+                        _ => 0,
+                    }
+                }
+                _ => 0,
+            }
+        };
+
+        serialized
+            .send(json!(ServerMessage::Correct))
+            .await
+            .unwrap();
+        // GROUP ID END
+
         let group = Self::get_or_create_group(group_id, &state);
-        Self::send_history(&group, &mut writer).await?;
-        Self::process_messages(reader, writer, group).await
+
+        // SEND HISTORY BEGIN
+        // Self::send_history(&group, &mut writer).await?;
+
+        let history = {
+            let group_lock = group.lock().unwrap();
+            group_lock.updates_history.clone()
+        };
+
+        for update in history {
+            serialized.send(json!(update)).await.unwrap();
+        }
+        // END SEND HISTORY
+
+        // PROCESS MESSAGES BEGIN
+        // Self::process_messages(reader, writer, group).await
+        let tx: broadcast::Sender<ServerMessage> = {
+            let group_lock = group.lock().unwrap();
+            group_lock.broadcast_tx.clone()
+        };
+
+        let mut rx = tx.subscribe();
+
+        loop {
+            tokio::select! {
+                msg = deserialized.try_next() => {
+                    let msg = msg.unwrap().unwrap();
+                    println!("GOT: {:?}", msg);
+
+                    let umessage = match serde_json::from_value(msg) {
+                        Ok(ClientMessage::Update(umessage)) => umessage,
+                        Ok(_) => {
+                            eprintln!("Unexpected message from client");
+                            return Ok(());
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to deserialize message: {}", e);
+                            return Ok(());
+                        }
+                    };
+
+                    {
+                        let mut group_lock = group.lock().unwrap();
+                        group_lock.current_packet_number += 1;
+                        let umessage = ServerMessage::Update(umessage);
+                        group_lock.updates_history.push(umessage.clone());
+                        tx.send(umessage).unwrap();
+                    }
+                }
+                message = rx.recv() => {
+                    let update = message.unwrap();
+                    serialized
+                        .send(json!(update))
+                        .await
+                        .unwrap();
+                }
+            }
+        }
     }
 
     async fn read_group_id<Reader>(reader: &mut BufReader<Reader>) -> std::io::Result<u32>
@@ -151,7 +238,19 @@ impl Server {
         Reader: AsyncRead + Unpin,
         Writer: AsyncWrite + Unpin,
     {
-        let tx = {
+        // loop {
+        //     tokio::select! {
+        //         msg = deserialized.try_next() => {
+        //             println!("GOT: {:?}", msg);
+        //         }
+        //         message = rx.recv() => {
+        //             let update = message.unwrap();
+        //             writer.write_all(format!("{}\n", serde_json::to_string(&update).unwrap()).as_bytes()).await.unwrap();
+        //         }
+        //     }
+        // }
+
+        let tx: broadcast::Sender<ServerMessage> = {
             let group_lock = group.lock().unwrap();
             group_lock.broadcast_tx.clone()
         };

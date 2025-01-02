@@ -1,13 +1,20 @@
+use futures::prelude::*;
 use serde::{Deserialize, Serialize};
-use shared_state_machine::messages::ClientMessage;
+use serde_json::{json, Value};
+use shared_state_machine::messages::{ClientMessage, ServerMessage};
 use shared_state_machine::server::Server;
 use shared_state_machine::umessage::UMessage;
 use shared_state_machine::ustack::UStack;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
+    io::{
+        AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
+        BufReader,
+    },
     net::{TcpListener, TcpStream},
     sync::broadcast,
 };
+use tokio_serde::formats::*;
+use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
 #[cfg(test)]
 mod tests {
@@ -31,90 +38,128 @@ mod tests {
 
         //-- (2) --//
         let addr = "127.0.0.1:7878";
+
+        // Setup clients' readers and writers.
         let client1 = TcpStream::connect(addr).await.unwrap();
+        let (reader, writer) = client1.into_split();
+        let mut reader1 = {
+            let length_delimited = FramedRead::new(reader, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(
+                length_delimited,
+                SymmetricalJson::<Value>::default(),
+            )
+        };
+        let mut writer1 = {
+            let length_delimited = FramedWrite::new(writer, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(length_delimited, SymmetricalJson::default())
+        };
+
         let client2 = TcpStream::connect(addr).await.unwrap();
-        let mut client1 = BufReader::new(client1);
-        let mut client2 = BufReader::new(client2);
+        let (reader, writer) = client2.into_split();
+        let mut reader2 = {
+            let length_delimited = FramedRead::new(reader, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(
+                length_delimited,
+                SymmetricalJson::<Value>::default(),
+            )
+        };
+        let mut writer2 = {
+            let length_delimited = FramedWrite::new(writer, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(length_delimited, SymmetricalJson::default())
+        };
 
-        let join1 = serde_json::to_string(&ClientMessage::JoinGroup(1)).unwrap();
-        let join2 = serde_json::to_string(&ClientMessage::JoinGroup(2)).unwrap();
-        let join1 = format!("{}\n", join1);
-        let join2 = format!("{}\n", join2);
+        let client3 = TcpStream::connect(addr).await.unwrap();
+        let (reader, writer) = client3.into_split();
+        let mut reader3 = {
+            let length_delimited = FramedRead::new(reader, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(
+                length_delimited,
+                SymmetricalJson::<Value>::default(),
+            )
+        };
+        let mut writer3 = {
+            let length_delimited = FramedWrite::new(writer, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(length_delimited, SymmetricalJson::default())
+        };
 
-        client1.write_all(join1.as_bytes()).await.unwrap();
-        client2.write_all(join1.as_bytes()).await.unwrap();
+        let client4 = TcpStream::connect(addr).await.unwrap();
+        let (reader, writer) = client4.into_split();
+        let mut reader4 = {
+            let length_delimited = FramedRead::new(reader, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(
+                length_delimited,
+                SymmetricalJson::<Value>::default(),
+            )
+        };
+        let mut writer4 = {
+            let length_delimited = FramedWrite::new(writer, LengthDelimitedCodec::new());
+            tokio_serde::SymmetricallyFramed::new(length_delimited, SymmetricalJson::default())
+        };
+        // END SETUP
+
+        let join1 = ClientMessage::JoinGroup(1);
+        let join2 = ClientMessage::JoinGroup(2);
+
+        // Client 1 joins group 1.
+        writer1.send(json!(join1)).await.unwrap();
+        let msg = reader1.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(ServerMessage::Correct));
+
+        // Client 2 joins group 1.
+        writer2.send(json!(join1)).await.unwrap();
+        let msg = reader2.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(ServerMessage::Correct));
 
         let ustack: UStack<i32> = UStack::new();
         let push_5 = ustack.push(5);
 
-        let update1 = serde_json::to_string(&ClientMessage::Update(
-            UMessage::new(1, 1, &push_5).unwrap(),
-        ))
-        .unwrap();
-        let update1 = format!("{}\n", update1);
-        let update2 = serde_json::to_string(&ClientMessage::Update(
-            UMessage::new(1, 1, &push_5).unwrap(),
-        ))
-        .unwrap();
-        let update2 = format!("{}\n", update2);
+        let update1 = &ClientMessage::Update(UMessage::new(1, 1, &push_5).unwrap());
+        let update2 = ClientMessage::Update(UMessage::new(1, 1, &push_5).unwrap());
 
-        client1.write_all(update1.as_bytes()).await.unwrap();
+        writer1.send(json!(update1)).await.unwrap();
 
         //-- (3) --//
-        let mut line = String::new();
 
         // Client 1 should receive update.
-        client1.read_line(&mut line).await.unwrap();
-        assert_eq!(line, update1);
-        line.clear();
+        let msg = reader1.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(update1));
 
         // Client 2 should receive update.
-        client2.read_line(&mut line).await.unwrap();
-        assert_eq!(line, update1);
-        line.clear();
+        let msg = reader2.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(update1));
 
-        // Client 3 connects do different group.
-        let client3 = TcpStream::connect(addr).await.unwrap();
-        let mut client3 = BufReader::new(client3);
-        client3.write_all(join2.as_bytes()).await.unwrap();
+        // Client 3 connects to a different group.
+        writer3.send(json!(join2)).await.unwrap();
+        let msg = reader3.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(ServerMessage::Correct));
 
         // Client 2 sends and update that should be broadcasted to client 1.
-        client2.write_all(update2.as_bytes()).await.unwrap();
+        writer2.send(json!(update2)).await.unwrap();
 
         // Client 1 should receive update.
-        client1.read_line(&mut line).await.unwrap();
-        assert_eq!(line, update2);
-        line.clear();
+        let msg = reader1.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(update2));
 
         // Client 2 should receive update.
-        client2.read_line(&mut line).await.unwrap();
-        assert_eq!(line, update2);
-        line.clear();
+        let msg = reader2.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(update1));
 
         //-- (4) --//
         // Client 4 connects to group 1.
-        let client4 = TcpStream::connect(addr).await.unwrap();
-        let mut client4 = BufReader::new(client4);
-        client4.write_all(join1.as_bytes()).await.unwrap();
+        writer4.send(json!(join1)).await.unwrap();
+        let msg = reader4.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(ServerMessage::Correct));
 
         // Client 4 should receive history.
-        client4.read_line(&mut line).await.unwrap();
-        assert_eq!(line, update1);
-        line.clear();
-        client4.read_line(&mut line).await.unwrap();
-        assert_eq!(line, update2);
-        line.clear();
+        let msg = reader4.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(update1));
+        let msg = reader4.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(update2));
 
         // Client 3 sends a message and only him should receive it.
-        let update3 = serde_json::to_string(&ClientMessage::Update(
-            UMessage::new(1, 1, &push_5).unwrap(),
-        ))
-        .unwrap();
-        let update3 = format!("{}\n", update3);
-
-        client3.write_all(update3.as_bytes()).await.unwrap();
-        client3.read_line(&mut line).await.unwrap();
-        assert_eq!(line, update3);
-        line.clear();
+        let update3 = ClientMessage::Update(UMessage::new(1, 1, &push_5).unwrap());
+        writer3.send(json!(update3)).await.unwrap();
+        let msg = reader3.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(update3));
     }
 }
