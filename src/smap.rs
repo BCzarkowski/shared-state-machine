@@ -9,13 +9,20 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::io::Write;
 use std::net::TcpStream;
-use std::sync::{Arc, Mutex};
+use std::sync::mpsc::channel;
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use update::Updatable;
 
 pub struct SMap<K: Eq + Hash, T: Updatable> {
     map: Arc<Mutex<UMap<K, T>>>,
     connection: TcpStream,
+    receiver: mpsc::Receiver<ResponseType>,
+}
+
+enum ResponseType {
+    Accepted,
+    Rejected,
 }
 
 impl<K: Eq + Hash, T: Updatable> SMap<K, T> {
@@ -23,6 +30,7 @@ impl<K: Eq + Hash, T: Updatable> SMap<K, T> {
         let map = Arc::new(Mutex::new(UMap::new()));
         let connection = TcpStream::connect(format!("127.0.0.1:{}", port)).unwrap();
         let tcp_stream = connection.try_clone().unwrap();
+        let (sender, receiver) = channel();
         thread::spawn(move || {
             let send_client_message = |message: ClientMessage| {
                 let mut tcp_stream = &tcp_stream;
@@ -50,8 +58,13 @@ impl<K: Eq + Hash, T: Updatable> SMap<K, T> {
                     ServerMessage::Update(update) => {
                         expect_server_correct();
                     }
-                    _ => {
-                        panic!("Expected ServerMessage::Update");
+                    ServerMessage::Correct => {
+                        sender.send(ResponseType::Accepted);
+                        ()
+                    }
+                    ServerMessage::Error => {
+                        sender.send(ResponseType::Rejected);
+                        ()
                     }
                 }
             }
