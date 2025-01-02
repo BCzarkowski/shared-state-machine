@@ -12,7 +12,7 @@ use tokio::{
         tcp::{OwnedReadHalf, OwnedWriteHalf},
         TcpListener, TcpStream,
     },
-    sync::broadcast,
+    sync::broadcast::{self, Receiver, Sender},
 };
 use tokio_serde::{formats::*, SymmetricallyFramed};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
@@ -120,8 +120,15 @@ impl Server {
             .unwrap();
 
         let group = Self::get_or_create_group(group_id, &state);
+
+        let tx = {
+            let group_lock = group.lock().unwrap();
+            group_lock.broadcast_tx.clone()
+        };
+        let rx = tx.subscribe();
+
         Self::send_group_history(&group, &mut serialized).await?;
-        Self::process_messages(&mut deserialized, &mut serialized, group).await
+        Self::process_messages(&mut deserialized, &mut serialized, group, tx, rx).await
     }
 
     async fn read_group_id(deserialized: &mut Deserializer) -> Option<u32> {
@@ -167,13 +174,9 @@ impl Server {
         deserialized: &mut Deserializer,
         serialized: &mut Serializer,
         group: Arc<Mutex<Group>>,
+        tx: Sender<ServerMessage>,
+        mut rx: Receiver<ServerMessage>,
     ) -> std::io::Result<()> {
-        let tx: broadcast::Sender<ServerMessage> = {
-            let group_lock = group.lock().unwrap();
-            group_lock.broadcast_tx.clone()
-        };
-        let mut rx = tx.subscribe();
-
         loop {
             tokio::select! {
                 msg = deserialized.try_next() => {
