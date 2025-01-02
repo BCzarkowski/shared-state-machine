@@ -117,7 +117,8 @@ mod tests {
         let update2 = ClientMessage::Update(UMessage::new(1, 1, &push_5).unwrap());
 
         writer1.send(json!(update1)).await.unwrap();
-
+        let msg = reader1.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(ServerMessage::Correct));
         //-- (3) --//
 
         // Client 1 should receive update.
@@ -135,6 +136,8 @@ mod tests {
 
         // Client 2 sends and update that should be broadcasted to client 1.
         writer2.send(json!(update2)).await.unwrap();
+        let msg = reader2.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(ServerMessage::Correct));
 
         // Client 1 should receive update.
         let msg = reader1.try_next().await.unwrap().unwrap();
@@ -159,6 +162,8 @@ mod tests {
         // Client 3 sends a message and only him should receive it.
         let update3 = ClientMessage::Update(UMessage::new(1, 1, &push_5).unwrap());
         writer3.send(json!(update3)).await.unwrap();
+        let msg = reader3.try_next().await.unwrap().unwrap();
+        assert_eq!(msg, json!(ServerMessage::Correct));
         let msg = reader3.try_next().await.unwrap().unwrap();
         assert_eq!(msg, json!(update3));
     }
