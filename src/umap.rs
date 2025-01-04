@@ -77,8 +77,8 @@ impl<K: Eq + Hash + Serialize + Clone, T: Updatable + Clone + Serialize> UMap<K,
         key: K,
     ) -> UNested<T, UMapUpdate<K, T>, impl FnOnce(T::Update) -> UMapUpdate<K, T>> {
         UNested {
-            structure: self.get_ref(&key).unwrap(),
-            outside_wrapper: move |update| UMapUpdate::Nested(key, update),
+            nested: self.get_ref(&key).unwrap(),
+            apply_outer: move |update| UMapUpdate::Nested(key, update),
         }
     }
 }
