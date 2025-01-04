@@ -19,8 +19,10 @@ impl UMessage {
             update: serde_json::to_string(update)?,
         })
     }
+}
 
-    pub fn get_update<T: for<'de> Deserialize<'de>>(&self) -> Result<T, serde_json::Error> {
+impl<'a> UMessage {
+    pub fn get_update<T: Deserialize<'a>>(&'a self) -> Result<T, serde_json::Error> {
         serde_json::from_str(&self.update)
     }
 }

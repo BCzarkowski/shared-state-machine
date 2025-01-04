@@ -5,18 +5,27 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use update::Updatable;
 
-pub struct UMap<K: Eq + Hash, T: Updatable + Clone> {
+#[derive(Clone, Serialize, Deserialize)]
+pub struct UMap<K, T>
+where
+    K: Eq + Hash + Clone + Serialize,
+    T: Updatable + Clone + Serialize,
+{
     map: HashMap<K, T>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum UMapUpdate<K: Eq + Hash + Serialize, T: Updatable + Serialize> {
+pub enum UMapUpdate<K, T>
+where
+    K: Eq + Hash,
+    T: Updatable,
+{
     Insert(K, T),
     Remove(K),
     Nested(K, T::Update),
 }
 
-impl<K: Eq + Hash + Serialize, T: Updatable + Clone + Serialize> Updatable for UMap<K, T> {
+impl<K: Eq + Hash + Serialize + Clone, T: Updatable + Clone + Serialize> Updatable for UMap<K, T> {
     type Update = UMapUpdate<K, T>;
 
     fn apply_update(&mut self, update: Self::Update) {
@@ -34,13 +43,13 @@ impl<K: Eq + Hash + Serialize, T: Updatable + Clone + Serialize> Updatable for U
     }
 }
 
-impl<K: Eq + Hash + Serialize, T: Updatable + Clone + Serialize> Default for UMap<K, T> {
+impl<K: Eq + Hash + Serialize + Clone, T: Updatable + Clone + Serialize> Default for UMap<K, T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<K: Eq + Hash + Serialize, T: Updatable + Clone + Serialize> UMap<K, T> {
+impl<K: Eq + Hash + Serialize + Clone, T: Updatable + Clone + Serialize> UMap<K, T> {
     pub fn new() -> Self {
         UMap {
             map: HashMap::new(),
@@ -75,7 +84,7 @@ impl<K: Eq + Hash + Serialize, T: Updatable + Clone + Serialize> UMap<K, T> {
 }
 
 impl<
-        K: Eq + Hash + Serialize,
+        K: Eq + Hash + Serialize + Clone,
         T: Updatable + Clone + Serialize,
         O,
         F: FnOnce(UMapUpdate<K, T>) -> O,

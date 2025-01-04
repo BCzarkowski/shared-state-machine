@@ -18,14 +18,14 @@ mod tests {
         assert_eq!(umap.get(&foo), None);
         assert_eq!(umap.get(&bar), None);
         umap.apply_update(insert_5);
-        assert_eq!(umap.get(&foo), Some(&5));
+        assert_eq!(umap.get(&foo), Some(5));
         assert_eq!(umap.get(&bar), None);
         umap.apply_update(insert_7);
-        assert_eq!(umap.get(&foo), Some(&5));
-        assert_eq!(umap.get(&bar), Some(&7));
+        assert_eq!(umap.get(&foo), Some(5));
+        assert_eq!(umap.get(&bar), Some(7));
         umap.apply_update(remove_5);
         assert_eq!(umap.get(&foo), None);
-        assert_eq!(umap.get(&bar), Some(&7));
+        assert_eq!(umap.get(&bar), Some(7));
         umap.apply_update(remove_7);
         assert_eq!(umap.get(&foo), None);
         assert_eq!(umap.get(&bar), None);
@@ -39,6 +39,6 @@ mod tests {
         umap.apply_update(umap.insert(foo.clone(), UMap::new()));
 
         umap.apply_update(umap.get_wrapped(foo.clone()).insert(bar.clone(), 5));
-        assert_eq!(umap.get(&foo).unwrap().get(&bar).unwrap(), &5);
+        assert_eq!(umap.get(&foo).unwrap().get(&bar).unwrap(), 5);
     }
 }

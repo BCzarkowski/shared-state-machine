@@ -7,14 +7,15 @@ use serde_json::Value;
 use std::hash::Hash;
 use std::io::Write;
 use std::net::TcpStream;
+use std::sync::atomic::AtomicU32;
 use std::sync::mpsc::channel;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use update::Updatable;
 
-pub struct SMap<K: Eq + Hash, T: Updatable + Clone> {
+pub struct SMap<K: Eq + Hash + Clone + Serialize, T: Updatable + Clone + Serialize> {
     map: Arc<Mutex<UMap<K, T>>>,
-    last_packet_number: Arc<u32>,
+    last_packet_number: Arc<AtomicU32>,
     group_id: u32,
     connection: TcpStream,
     receiver: mpsc::Receiver<ResponseType>,
@@ -25,16 +26,18 @@ enum ResponseType {
     Rejected,
 }
 
-impl<K: Eq + Hash + Serialize + for<'a> Deserialize<'a>, T: Updatable + Clone + Serialize>
-    SMap<K, T>
+impl<K, T> SMap<K, T>
 where
-    <T as Updatable>::Update: Serialize,
+    K: Eq + Hash + Clone + Serialize + for<'de> Deserialize<'de> + Send + 'static,
+    T: Updatable + Clone + Serialize + for<'de> Deserialize<'de> + Send + 'static,
+    <T as Updatable>::Update: Serialize + for<'de> Deserialize<'de> + Send + 'static,
 {
     pub fn new(port: u16, group: u32) -> Self {
         let map = Arc::new(Mutex::new(UMap::new()));
+        let map_clone = map.clone();
         let connection = TcpStream::connect(format!("127.0.0.1:{}", port)).unwrap();
         let tcp_stream = connection.try_clone().unwrap();
-        let last_packet_number = Arc::new(0);
+        let last_packet_number = Arc::new(AtomicU32::new(0));
         let packet_id = last_packet_number.clone();
         let (sender, receiver) = channel();
         thread::spawn(move || {
@@ -58,25 +61,33 @@ where
                 let message = receive_server_message();
                 match message {
                     ServerMessage::Update(umessage) => {
-                        *packet_id = umessage.packet_id;
+                        packet_id.store(umessage.packet_id, std::sync::atomic::Ordering::Relaxed);
                         let update = umessage.get_update().unwrap();
                         map.lock().unwrap().apply_update(update);
                     }
                     ServerMessage::Correct => {
-                        sender.send(ResponseType::Accepted);
+                        sender.send(ResponseType::Accepted).unwrap();
                     }
                     ServerMessage::Error => {
-                        sender.send(ResponseType::Rejected);
+                        sender.send(ResponseType::Rejected).unwrap();
                     }
                 };
             }
         });
-        SMap { map, connection }
+        SMap {
+            map: map_clone,
+            last_packet_number,
+            connection,
+            group_id: group,
+            receiver,
+        }
     }
 
     fn publish_update(&mut self, update: UMapUpdate<K, T>) -> () {
         loop {
-            let packet_id = *self.last_packet_number;
+            let packet_id = self
+                .last_packet_number
+                .load(std::sync::atomic::Ordering::Relaxed);
             let group_id = self.group_id;
             let umessage = UMessage::new(group_id, packet_id, &update).unwrap();
             let message = ClientMessage::Update(umessage);
