@@ -121,13 +121,13 @@ impl Server {
 
         let group = Self::get_or_create_group(group_id, &state);
 
-        let tx = {
+        let (tx, history) = {
             let group_lock = group.lock().unwrap();
-            group_lock.broadcast_tx.clone()
+            (group_lock.broadcast_tx.clone(), group_lock.updates_history.clone()) 
         };
         let rx = tx.subscribe();
 
-        Self::send_group_history(&group, &mut serialized).await?;
+        Self::send_group_history(history, &mut serialized).await?;
         Self::process_messages(&mut deserialized, &mut serialized, group, tx, rx).await
     }
 
@@ -155,14 +155,9 @@ impl Server {
     }
 
     async fn send_group_history(
-        group: &Arc<Mutex<Group>>,
+        history: Vec<ServerMessage>,
         serialized: &mut Serializer,
     ) -> std::io::Result<()> {
-        let history = {
-            let group_lock = group.lock().unwrap();
-            group_lock.updates_history.clone()
-        };
-
         for update in history {
             dbg!("Server sending | {}", &update);
             serialized.send(json!(update)).await?;
