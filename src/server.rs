@@ -121,11 +121,13 @@ impl Server {
 
         let group = Self::get_or_create_group(group_id, &state);
 
-        let (tx, history) = {
+        let (tx, rx, history) = {
             let group_lock = group.lock().unwrap();
-            (group_lock.broadcast_tx.clone(), group_lock.updates_history.clone()) 
+            let tx = group_lock.broadcast_tx.clone();
+            let history = group_lock.updates_history.clone();
+            let rx = tx.subscribe();  
+            (tx, rx, history) 
         };
-        let rx = tx.subscribe();
 
         Self::send_group_history(history, &mut serialized).await?;
         Self::process_messages(&mut deserialized, &mut serialized, group, tx, rx).await
