@@ -164,6 +164,7 @@ impl Server {
         };
 
         for update in history {
+            dbg!("Server sending | {}", &update);
             serialized.send(json!(update)).await?;
         }
 
@@ -184,6 +185,7 @@ impl Server {
                 }
                 message = rx.recv() => {
                     if let Ok(update) = message {
+                        dbg!("Server sending | {}", &update);
                         serialized.send(json!(update)).await.unwrap();
                     }
                 }
@@ -202,7 +204,10 @@ impl Server {
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid message"))?;
 
         let umessage = match serde_json::from_value(msg) {
-            Ok(ClientMessage::Update(umessage)) => umessage,
+            Ok(ClientMessage::Update(umessage)) => {
+                dbg!("Server received UMessage | {}", &umessage);
+                umessage
+            },
             Ok(_) => {
                 eprintln!("Unexpected message from client");
                 return Ok(());
@@ -226,6 +231,7 @@ impl Server {
             }
         };
 
+        dbg!("Server sending | {}", &server_response);
         serialized.send(json!(server_response)).await.unwrap();
 
         Ok(())
