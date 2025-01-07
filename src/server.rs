@@ -1,46 +1,236 @@
-use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::TcpListener,
-    sync::broadcast,
+use crate::messages;
+use futures::prelude::*;
+use messages::{ClientMessage, ServerMessage};
+use serde_json::{json, Value};
+use std::{
+    collections::HashMap,
+    io::{self},
+    sync::{Arc, Mutex},
 };
+use tokio::{
+    net::{
+        tcp::{OwnedReadHalf, OwnedWriteHalf},
+        TcpListener, TcpStream,
+    },
+    sync::broadcast::{self, Receiver, Sender},
+};
+use tokio_serde::{formats::*, SymmetricallyFramed};
+use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 
-pub async fn run_server() {
-    let listener = TcpListener::bind("127.0.0.1:7878").await.unwrap();
-    println!("Server is listening on 127.0.0.1:7878.");
+#[derive(Debug)]
+pub struct Group {
+    broadcast_tx: broadcast::Sender<ServerMessage>,
+    current_packet_number: u32,
+    updates_history: Vec<ServerMessage>,
+}
 
-    let (tx, _rx) = broadcast::channel(10);
+impl Group {
+    pub fn new(broadcast_tx: broadcast::Sender<ServerMessage>) -> Self {
+        Self {
+            broadcast_tx,
+            current_packet_number: 0,
+            updates_history: vec![],
+        }
+    }
+}
 
-    loop {
-        let (mut socket, addr) = listener.accept().await.unwrap();
+#[derive(Debug)]
+pub struct ServerState {
+    groups: HashMap<u32, Arc<Mutex<Group>>>,
+}
 
-        let tx = tx.clone();
-        let mut rx = tx.subscribe();
+impl ServerState {
+    pub fn new() -> Self {
+        Self {
+            groups: HashMap::new(),
+        }
+    }
+}
 
-        tokio::spawn(async move {
-            let (reader, mut writer) = socket.split();
+impl Default for ServerState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-            let mut reader = BufReader::new(reader);
-            let mut line = String::new();
+type Deserializer = SymmetricallyFramed<
+    FramedRead<OwnedReadHalf, LengthDelimitedCodec>,
+    Value,
+    SymmetricalJson<Value>,
+>;
+type Serializer = SymmetricallyFramed<
+    FramedWrite<OwnedWriteHalf, LengthDelimitedCodec>,
+    Value,
+    SymmetricalJson<Value>,
+>;
 
-            loop {
-                tokio::select! {
-                    bytes_read = reader.read_line(&mut line) => {
-                        if bytes_read.unwrap() == 0 {
-                            break;
-                        }
+#[derive(Debug)]
+pub struct Server {
+    state: Arc<Mutex<ServerState>>,
+    port: u16,
+}
 
-                        tx.send((line.clone(), addr)).unwrap();
-                        line.clear();
-                    }
-                    message = rx.recv() => {
-                        let (message, sender) = message.unwrap();
+impl Server {
+    pub fn new(port: u16) -> Self {
+        Self {
+            state: Arc::new(Mutex::new(ServerState::new())),
+            port,
+        }
+    }
 
-                        if sender != addr {
-                            writer.write_all(message.as_bytes()).await.unwrap();
-                        }
+    pub async fn run(&self) {
+        let listener = TcpListener::bind(format!("127.0.0.1:{}", self.port))
+            .await
+            .unwrap();
+
+        loop {
+            let (socket, _) = listener.accept().await.unwrap();
+            let state = self.state.clone();
+            tokio::spawn(async move {
+                if let Err(e) = Server::handle_connection(socket, state).await {
+                    eprintln!("Connection handling failed: {}", e);
+                }
+            });
+        }
+    }
+
+    fn create_deserializer(reader: OwnedReadHalf) -> Deserializer {
+        let length_delimited = FramedRead::new(reader, LengthDelimitedCodec::new());
+        SymmetricallyFramed::new(length_delimited, SymmetricalJson::<Value>::default())
+    }
+
+    fn create_serializer(writer: OwnedWriteHalf) -> Serializer {
+        let length_delimited = FramedWrite::new(writer, LengthDelimitedCodec::new());
+        SymmetricallyFramed::new(length_delimited, SymmetricalJson::default())
+    }
+
+    async fn handle_connection(
+        socket: TcpStream,
+        state: Arc<Mutex<ServerState>>,
+    ) -> std::io::Result<()> {
+        let (reader, writer) = socket.into_split();
+
+        let mut deserialized = Self::create_deserializer(reader);
+        let mut serialized = Self::create_serializer(writer);
+
+        let group_id = Self::read_group_id(&mut deserialized).await.unwrap_or(0);
+        serialized
+            .send(json!(ServerMessage::Correct))
+            .await
+            .unwrap();
+
+        let group = Self::get_or_create_group(group_id, &state);
+
+        let (tx, rx, history) = {
+            let group_lock = group.lock().unwrap();
+            let tx = group_lock.broadcast_tx.clone();
+            let history = group_lock.updates_history.clone();
+            let rx = tx.subscribe();  
+            (tx, rx, history) 
+        };
+
+        Self::send_group_history(history, &mut serialized).await?;
+        Self::process_messages(&mut deserialized, &mut serialized, group, tx, rx).await
+    }
+
+    async fn read_group_id(deserialized: &mut Deserializer) -> Option<u32> {
+        let message = deserialized.try_next().await.unwrap_or(None);
+        match message {
+            Some(value) => match serde_json::from_value(value).ok()? {
+                ClientMessage::JoinGroup(group_id) => Some(group_id),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn get_or_create_group(group_id: u32, state: &Arc<Mutex<ServerState>>) -> Arc<Mutex<Group>> {
+        let mut state_lock = state.lock().unwrap();
+        state_lock
+            .groups
+            .entry(group_id)
+            .or_insert_with(|| {
+                let (tx, _rx) = broadcast::channel(16);
+                Arc::new(Mutex::new(Group::new(tx)))
+            })
+            .clone()
+    }
+
+    async fn send_group_history(
+        history: Vec<ServerMessage>,
+        serialized: &mut Serializer,
+    ) -> std::io::Result<()> {
+        for update in history {
+            dbg!("Server sending | {}", &update);
+            serialized.send(json!(update)).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn process_messages(
+        deserialized: &mut Deserializer,
+        serialized: &mut Serializer,
+        group: Arc<Mutex<Group>>,
+        tx: Sender<ServerMessage>,
+        mut rx: Receiver<ServerMessage>,
+    ) -> std::io::Result<()> {
+        loop {
+            tokio::select! {
+                msg = deserialized.try_next() => {
+                    Self::handle_incoming_message(msg, &group, &tx, serialized).await?;
+                }
+                message = rx.recv() => {
+                    if let Ok(update) = message {
+                        dbg!("Server sending | {}", &update);
+                        serialized.send(json!(update)).await.unwrap();
                     }
                 }
             }
-        });
+        }
+    }
+
+    async fn handle_incoming_message(
+        msg: Result<Option<Value>, io::Error>,
+        group: &Arc<Mutex<Group>>,
+        tx: &broadcast::Sender<ServerMessage>,
+        serialized: &mut Serializer,
+    ) -> std::io::Result<()> {
+        let msg = msg
+            .unwrap_or(None)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid message"))?;
+
+        let umessage = match serde_json::from_value(msg) {
+            Ok(ClientMessage::Update(umessage)) => {
+                dbg!("Server received UMessage | {}", &umessage);
+                umessage
+            },
+            Ok(_) => {
+                eprintln!("Unexpected message from client");
+                return Ok(());
+            }
+            Err(e) => {
+                eprintln!("Failed to deserialize message: {}", e);
+                return Ok(());
+            }
+        };
+
+        let server_response = {
+            let mut group_lock = group.lock().unwrap();
+            if umessage.packet_id != group_lock.current_packet_number {
+                ServerMessage::Error
+            } else {
+                group_lock.current_packet_number += 1;
+                let umessage = ServerMessage::Update(umessage);
+                group_lock.updates_history.push(umessage.clone());
+                tx.send(umessage).unwrap();
+                ServerMessage::Correct
+            }
+        };
+
+        dbg!("Server sending | {}", &server_response);
+        serialized.send(json!(server_response)).await.unwrap();
+
+        Ok(())
     }
 }
