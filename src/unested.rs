@@ -1,10 +1,12 @@
+use std::marker::PhantomData;
+
 use crate::update::Updatable;
 
-pub struct UNested<'a, T, O, F>
+pub struct UNested<T, O, F>
 where
     T: Updatable,
     F: FnOnce(T::Update) -> O,
 {
-    pub nested: &'a T,
     pub apply_outer: F,
+    pub inner_type: PhantomData<T>,
 }

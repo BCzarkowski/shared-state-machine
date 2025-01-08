@@ -3,6 +3,7 @@ use crate::update;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::marker::PhantomData;
 use update::Updatable;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -10,6 +11,7 @@ pub struct UMap<K, T>
 where
     K: Eq + Hash + Clone + Serialize,
     T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
 {
     map: HashMap<K, T>,
 }
@@ -25,7 +27,12 @@ where
     Nested(K, T::Update),
 }
 
-impl<K: Eq + Hash + Serialize + Clone, T: Updatable + Clone + Serialize> Updatable for UMap<K, T> {
+impl<K, T> Updatable for UMap<K, T>
+where
+    K: Eq + Hash + Clone + Serialize,
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     type Update = UMapUpdate<K, T>;
 
     fn apply_update(&mut self, update: Self::Update) {
@@ -43,13 +50,23 @@ impl<K: Eq + Hash + Serialize + Clone, T: Updatable + Clone + Serialize> Updatab
     }
 }
 
-impl<K: Eq + Hash + Serialize + Clone, T: Updatable + Clone + Serialize> Default for UMap<K, T> {
+impl<K, T> Default for UMap<K, T>
+where
+    K: Eq + Hash + Clone + Serialize,
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<K: Eq + Hash + Serialize + Clone, T: Updatable + Clone + Serialize> UMap<K, T> {
+impl<K, T> UMap<K, T>
+where
+    K: Eq + Hash + Clone + Serialize,
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     pub fn new() -> Self {
         UMap {
             map: HashMap::new(),
@@ -77,24 +94,31 @@ impl<K: Eq + Hash + Serialize + Clone, T: Updatable + Clone + Serialize> UMap<K,
         key: K,
     ) -> UNested<T, UMapUpdate<K, T>, impl FnOnce(T::Update) -> UMapUpdate<K, T>> {
         UNested {
-            nested: self.get_ref(&key).unwrap(),
             apply_outer: move |update| UMapUpdate::Nested(key, update),
+            inner_type: PhantomData,
         }
     }
 }
 
-impl<
-        K: Eq + Hash + Serialize + Clone,
-        T: Updatable + Clone + Serialize,
-        O,
-        F: FnOnce(UMapUpdate<K, T>) -> O,
-    > UNested<'_, UMap<K, T>, O, F>
+impl<K, T, O, F> UNested<UMap<K, T>, O, F>
+where
+    K: Eq + Hash + Clone + Serialize,
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+    F: FnOnce(UMapUpdate<K, T>) -> O,
 {
     pub fn insert(self, key: K, value: T) -> O {
-        (self.apply_outer)(self.nested.insert(key, value))
+        (self.apply_outer)(UMapUpdate::Insert(key, value))
     }
 
     pub fn remove(self, key: K) -> O {
-        (self.apply_outer)(self.nested.remove(key))
+        (self.apply_outer)(UMapUpdate::Remove(key))
+    }
+
+    pub fn get_mut(self, key: K) -> UNested<T, O, impl FnOnce(T::Update) -> O> {
+        UNested {
+            apply_outer: move |update| (self.apply_outer)(UMapUpdate::Nested(key, update)),
+            inner_type: PhantomData,
+        }
     }
 }
