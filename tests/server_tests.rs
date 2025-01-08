@@ -15,6 +15,7 @@ use tokio::{
 };
 use tokio_serde::formats::*;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
+use tokio_util::sync::CancellationToken;
 
 #[cfg(test)]
 mod tests {
@@ -30,9 +31,13 @@ mod tests {
         // (5) TODO: Refusing to update when not correct.
 
         //-- (1) --//
-        tokio::spawn(async move {
+
+        let shutdown_token = CancellationToken::new();
+        let server_shutdown_token = shutdown_token.clone();
+
+        let server_handle = tokio::spawn(async move {
             let server = Server::new(7878);
-            server.run().await;
+            server.run(server_shutdown_token).await;
         });
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
@@ -171,5 +176,9 @@ mod tests {
         writer3.send(json!(update4)).await.unwrap();
         let msg = reader3.try_next().await.unwrap().unwrap();
         assert_eq!(msg, json!(ServerMessage::Error));
+
+        // Graceful shutdown of server.
+        shutdown_token.cancel();
+        server_handle.await.unwrap();
     }
 }

@@ -16,6 +16,7 @@ use tokio::{
 };
 use tokio_serde::{formats::*, SymmetricallyFramed};
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
+use tokio_util::sync::CancellationToken;
 
 use thiserror::Error;
 
@@ -92,19 +93,34 @@ impl Server {
         }
     }
 
-    pub async fn run(&self) {
+    pub async fn run(&self, shutdown_token: CancellationToken) {
         let listener = TcpListener::bind(format!("127.0.0.1:{}", self.port))
             .await
             .unwrap();
 
         loop {
-            let (socket, _) = listener.accept().await.unwrap();
-            let state = self.state.clone();
-            tokio::spawn(async move {
-                if let Err(e) = Server::handle_connection(socket, state).await {
-                    eprintln!("Connection handling failed: {}", e);
+            tokio::select! {
+                result = listener.accept() => {
+                    match result {
+                        Ok((socket, _)) => {
+                            let state = self.state.clone();
+                            let token = shutdown_token.clone();
+                            tokio::spawn(async move {
+                                if let Err(e) = Server::handle_connection(socket, state, token).await {
+                                    eprintln!("Connection handling failed: {}", e);
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            eprintln!("Error accepting connection: {}", e);
+                            break;
+                        }
+                    }
                 }
-            });
+                _ = shutdown_token.cancelled() => {
+                    break;
+                }
+            }
         }
     }
 
@@ -121,6 +137,7 @@ impl Server {
     async fn handle_connection(
         socket: TcpStream,
         state: Arc<Mutex<ServerState>>,
+        shutdown_token: CancellationToken,
     ) -> Result<(), ServerError> {
         let (reader, writer) = socket.into_split();
 
@@ -148,7 +165,15 @@ impl Server {
         };
 
         Self::send_group_history(history, &mut serialized).await?;
-        Self::process_messages(&mut deserialized, &mut serialized, group, tx, rx).await
+        Self::process_messages(
+            &mut deserialized,
+            &mut serialized,
+            group,
+            tx,
+            rx,
+            shutdown_token,
+        )
+        .await
     }
 
     async fn read_group_id(deserialized: &mut Deserializer) -> Result<u32, ServerError> {
@@ -202,6 +227,7 @@ impl Server {
         group: Arc<Mutex<Group>>,
         tx: Sender<ServerMessage>,
         mut rx: Receiver<ServerMessage>,
+        shutdown_token: CancellationToken,
     ) -> Result<(), ServerError> {
         loop {
             tokio::select! {
@@ -215,6 +241,10 @@ impl Server {
                         .await
                         .map_err(|_e| ServerError::SendError("Broadcast message".into()))?;
                     }
+                }
+                _ = shutdown_token.cancelled() => {
+                    eprintln!("Shutting down connection...");
+                    return Ok(());
                 }
             }
         }
