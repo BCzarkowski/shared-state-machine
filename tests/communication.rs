@@ -199,4 +199,66 @@ mod tests {
 
         server_handle.await.unwrap();
     }
+
+    #[tokio::test]
+    async fn complex_operations_between_clients() {
+        let shutdown_token = CancellationToken::new();
+        let server_shutdown_token = shutdown_token.clone();
+        
+        let port = 7873;
+        let server_handle = tokio::spawn(async move {
+            let server = Server::new(port.clone());
+            server.run(server_shutdown_token).await
+        });
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
+        let operations = 1000;
+
+        let client1_handle = tokio::task::spawn_blocking(move || {
+            let status = (|| -> synchronizer::Result<()> {
+                let mut client1: SMap<String, i32> = SMap::new(port.clone(), 1)?;
+                for i in 0..operations {
+                    let key = format!("client1_key_{}", i);
+                    client1.insert(key.clone(), i);
+                    std::thread::sleep(time::Duration::from_millis(5));
+                }
+
+                let key_final = format!("client2_key_{}", operations - 1);
+                let value_final = client1.get(&key_final);
+                println!("Client 1: Final value of key {} is {:?}", key_final, value_final);
+                Ok(())
+            })();
+            if let Err(_) = status {
+                panic!("Complex test failed!");
+            }
+        });
+
+
+        let client2_handle = tokio::task::spawn_blocking(move || {
+            let status = (|| -> synchronizer::Result<()> {
+                let mut client2: SMap<String, i32> = SMap::new(port.clone(), 1)?;
+                for i in 0..operations {
+                    let key = format!("client1_key_{}", i);
+                    client2.insert(key.clone(), i * 2);
+                    std::thread::sleep(time::Duration::from_millis(5));
+                }
+
+                let key_final = format!("client1_key_{}", operations - 1);
+                let value_final = client2.get(&key_final);
+                println!("Client 2: Final value of key {} is {:?}", key_final, value_final);
+                Ok(())
+            })();
+            if let Err(_) = status {
+                panic!("Complex test failed!");
+            }
+        });
+
+
+        client1_handle.await.expect("Client 1 thread panicked");
+        client2_handle.await.expect("Client 2 thread panicked");
+        shutdown_token.cancel();
+        server_handle.await.unwrap();
+    }
+
 }
