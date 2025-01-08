@@ -15,7 +15,7 @@ mod tests {
         let message_update = umessage.get_update::<UStackUpdate<i32>>().unwrap();
 
         ustack.apply_update(message_update);
-        assert_eq!(*ustack.top(), 5);
+        assert_eq!(ustack.top().unwrap(), 5);
     }
 
     #[test]
@@ -23,13 +23,11 @@ mod tests {
         let mut ustack: UStack<UStack<i32>> = UStack::new();
         ustack.apply_update(ustack.push(UStack::new()));
 
-        let inner_update = ustack.top_mut().push(5);
-        let recursive_update = ustack.create_recursive(inner_update);
-
+        let recursive_update = ustack.top_mut().push(5);
         let umessage = UMessage::new(0, 0, &recursive_update).unwrap();
         let message_update = umessage.get_update::<UStackUpdate<UStack<i32>>>().unwrap();
 
         ustack.apply_update(message_update);
-        assert_eq!(*ustack.top().top(), 5);
+        assert_eq!(ustack.top().unwrap().top().unwrap(), 5);
     }
 }

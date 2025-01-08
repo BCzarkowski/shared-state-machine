@@ -1,13 +1,23 @@
+use crate::unested::UNested;
 use crate::update;
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 use update::Updatable;
 
-pub struct UVec<T: Updatable> {
+#[derive(Clone, Serialize, Deserialize)]
+pub struct UVec<T: Updatable>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     vec: Vec<T>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum UVecUpdate<T: Updatable> {
+pub enum UVecUpdate<T>
+where
+    T: Updatable,
+{
     Clear,
     Insert(usize, T),
     Pop,
@@ -16,7 +26,11 @@ pub enum UVecUpdate<T: Updatable> {
     Nested(usize, T::Update),
 }
 
-impl<T: Updatable> Updatable for UVec<T> {
+impl<T> Updatable for UVec<T>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     type Update = UVecUpdate<T>;
 
     fn apply_update(&mut self, update: Self::Update) {
@@ -51,13 +65,21 @@ impl<T: Updatable> Updatable for UVec<T> {
     }
 }
 
-impl<T: Updatable> Default for UVec<T> {
+impl<T> Default for UVec<T>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Updatable> UVec<T> {
+impl<T> UVec<T>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     pub fn new() -> Self {
         UVec { vec: Vec::new() }
     }
@@ -82,27 +104,59 @@ impl<T: Updatable> UVec<T> {
         UVecUpdate::Pop
     }
 
-    pub fn get(&self, index: usize) -> &T {
-        self.vec.get(index).unwrap()
+    pub fn get(&self, index: usize) -> Option<T> {
+        self.vec.get(index).cloned()
     }
 
-    pub fn get_mut(&mut self, index: usize) -> &mut T {
-        self.vec.get_mut(index).unwrap()
+    pub fn get_mut(
+        &self,
+        index: usize,
+    ) -> UNested<T, UVecUpdate<T>, impl FnOnce(T::Update) -> UVecUpdate<T>> {
+        UNested {
+            apply_outer: move |update| UVecUpdate::Nested(index, update),
+            inner_type: PhantomData,
+        }
     }
 
-    pub fn last(&self) -> &T {
-        self.vec.last().unwrap()
-    }
-
-    pub fn last_mut(&mut self) -> &mut T {
-        self.vec.last_mut().unwrap()
+    pub fn last(&self) -> Option<T> {
+        self.vec.last().cloned()
     }
 
     pub fn is_empty(&self) -> bool {
         self.vec.is_empty()
     }
+}
 
-    pub fn create_recursive(&self, index: usize, update: T::Update) -> UVecUpdate<T> {
-        UVecUpdate::Nested(index, update)
+impl<T, O, F> UNested<UVec<T>, O, F>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+    F: FnOnce(UVecUpdate<T>) -> O,
+{
+    pub fn clear(self) -> O {
+        (self.apply_outer)(UVecUpdate::Clear)
+    }
+
+    pub fn insert(self, index: usize, value: T) -> O {
+        (self.apply_outer)(UVecUpdate::Insert(index, value))
+    }
+
+    pub fn remove(self, index: usize) -> O {
+        (self.apply_outer)(UVecUpdate::Remove(index))
+    }
+
+    pub fn push(self, value: T) -> O {
+        (self.apply_outer)(UVecUpdate::Push(value))
+    }
+
+    pub fn pop(self) -> O {
+        (self.apply_outer)(UVecUpdate::Pop)
+    }
+
+    pub fn get_mut(self, index: usize) -> UNested<T, O, impl FnOnce(T::Update) -> O> {
+        UNested {
+            apply_outer: move |update| (self.apply_outer)(UVecUpdate::Nested(index, update)),
+            inner_type: PhantomData,
+        }
     }
 }
