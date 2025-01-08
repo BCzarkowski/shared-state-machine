@@ -1,18 +1,17 @@
 use shared_state_machine::smap::SMap;
+use shared_state_machine::synchronizer;
 use shared_state_machine::update::Updatable;
 use shared_state_machine::uvec::UVec;
-use shared_state_machine::{server::Server, smap, synchronizer, umap::UMap};
+use shared_state_machine::{
+    server::{self, Server},
+    smap,
+    umap::UMap,
+};
 use std::{thread, time};
+use tokio_util::sync::CancellationToken;
 
 #[cfg(test)]
 mod tests {
-    use shared_state_machine::{
-        server::{self, Server},
-        smap,
-        umap::UMap,
-    };
-    use std::{thread, time};
-    use tokio_util::sync::CancellationToken;
 
     use super::*;
 
@@ -75,7 +74,6 @@ mod tests {
         }
 
         server_handle.await.unwrap();
-        // server_handle.abort();
     }
 
     #[tokio::test]
@@ -200,6 +198,5 @@ mod tests {
         }
 
         server_handle.await.unwrap();
-        // server_handle.abort();
     }
 }
