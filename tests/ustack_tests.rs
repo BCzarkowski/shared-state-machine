@@ -24,19 +24,15 @@ mod tests {
     #[test]
     fn recursive_operations() {
         let mut ustack: UStack<UStack<UStack<UStack<i32>>>> = UStack::new();
-        
+
         ustack.apply_update(ustack.push(UStack::new()));
         ustack.apply_update(ustack.top_mut().push(UStack::new()));
         ustack.apply_update(ustack.top_mut().top_mut().push(UStack::new()));
-        ustack.apply_update(
-            ustack.top_mut()
-                .top_mut()
-                .top_mut()
-                .push(5),
-        );
-       
+        ustack.apply_update(ustack.top_mut().top_mut().top_mut().push(5));
+
         assert_eq!(
-            ustack.top()
+            ustack
+                .top()
                 .unwrap()
                 .top()
                 .unwrap()
