@@ -260,7 +260,9 @@ impl Server {
             Ok(Some(value)) => value,
             Ok(None) => {
                 eprintln!("Client disconnected while sending message.");
-                return Err(ServerError::CommunicationError("Client disconnected".into()));
+                return Err(ServerError::CommunicationError(
+                    "Client disconnected".into(),
+                ));
             }
             Err(_e) => {
                 return Err(ServerError::ReadError("Incoming message".into()));

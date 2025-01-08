@@ -1,20 +1,33 @@
+use crate::unested::UNested;
 use crate::update;
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 use update::Updatable;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct UStack<T: Updatable> {
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct UStack<T>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     stack: Vec<T>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum UStackUpdate<T: Updatable> {
+pub enum UStackUpdate<T>
+where
+    T: Updatable,
+{
     Push(T),
     Pop,
     Nested(T::Update),
 }
 
-impl<T: Updatable> Updatable for UStack<T> {
+impl<T> Updatable for UStack<T>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     type Update = UStackUpdate<T>;
 
     fn apply_update(&mut self, update: Self::Update) {
@@ -40,13 +53,21 @@ impl<T: Updatable> Updatable for UStack<T> {
     }
 }
 
-impl<T: Updatable> Default for UStack<T> {
+impl<T> Default for UStack<T>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Updatable> UStack<T> {
+impl<T> UStack<T>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+{
     pub fn new() -> Self {
         UStack { stack: Vec::new() }
     }
@@ -59,15 +80,38 @@ impl<T: Updatable> UStack<T> {
         UStackUpdate::Pop
     }
 
-    pub fn top(&self) -> &T {
-        self.stack.last().unwrap()
+    pub fn top(&self) -> Option<T> {
+        self.stack.last().cloned()
     }
 
-    pub fn top_mut(&mut self) -> &mut T {
-        self.stack.last_mut().unwrap()
+    pub fn top_mut(
+        &self,
+    ) -> UNested<T, UStackUpdate<T>, impl FnOnce(T::Update) -> UStackUpdate<T>> {
+        UNested {
+            apply_outer: move |update| UStackUpdate::Nested(update),
+            inner_type: PhantomData,
+        }
+    }
+}
+
+impl<T, O, F> UNested<UStack<T>, O, F>
+where
+    T: Updatable + Clone + Serialize,
+    <T as Updatable>::Update: Serialize,
+    F: FnOnce(UStackUpdate<T>) -> O,
+{
+    pub fn push(self, value: T) -> O {
+        (self.apply_outer)(UStackUpdate::Push(value))
     }
 
-    pub fn create_recursive(&self, update: T::Update) -> UStackUpdate<T> {
-        UStackUpdate::Nested(update)
+    pub fn pop(self) -> O {
+        (self.apply_outer)(UStackUpdate::Pop)
+    }
+
+    pub fn top_mut(self) -> UNested<T, O, impl FnOnce(T::Update) -> O> {
+        UNested {
+            apply_outer: move |update| (self.apply_outer)(UStackUpdate::Nested(update)),
+            inner_type: PhantomData,
+        }
     }
 }

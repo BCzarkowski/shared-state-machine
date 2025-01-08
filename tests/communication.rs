@@ -204,7 +204,7 @@ mod tests {
     async fn complex_operations_between_clients() {
         let shutdown_token = CancellationToken::new();
         let server_shutdown_token = shutdown_token.clone();
-        
+
         let port = 7873;
         let server_handle = tokio::spawn(async move {
             let server = Server::new(port.clone());
@@ -226,14 +226,16 @@ mod tests {
 
                 let key_final = format!("client2_key_{}", operations - 1);
                 let value_final = client1.get(&key_final);
-                println!("Client 1: Final value of key {} is {:?}", key_final, value_final);
+                println!(
+                    "Client 1: Final value of key {} is {:?}",
+                    key_final, value_final
+                );
                 Ok(())
             })();
             if let Err(_) = status {
                 panic!("Complex test failed!");
             }
         });
-
 
         let client2_handle = tokio::task::spawn_blocking(move || {
             let status = (|| -> synchronizer::Result<()> {
@@ -246,7 +248,10 @@ mod tests {
 
                 let key_final = format!("client1_key_{}", operations - 1);
                 let value_final = client2.get(&key_final);
-                println!("Client 2: Final value of key {} is {:?}", key_final, value_final);
+                println!(
+                    "Client 2: Final value of key {} is {:?}",
+                    key_final, value_final
+                );
                 Ok(())
             })();
             if let Err(_) = status {
@@ -254,11 +259,9 @@ mod tests {
             }
         });
 
-
         client1_handle.await.expect("Client 1 thread panicked");
         client2_handle.await.expect("Client 2 thread panicked");
         shutdown_token.cancel();
         server_handle.await.unwrap();
     }
-
 }
