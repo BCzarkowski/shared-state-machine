@@ -33,12 +33,34 @@ mod tests {
 
     #[test]
     fn recursive_operations() {
-        let mut umap: UMap<String, UMap<String, i32>> = UMap::new();
+        let mut umap: UMap<String, UMap<i32, UMap<String, UMap<String, i32>>>> = UMap::new();
         let foo = String::from("foo");
         let bar = String::from("bar");
+        let val = 7;
         umap.apply_update(umap.insert(foo.clone(), UMap::new()));
+        umap.apply_update(umap.get_mut(foo.clone()).insert(val.clone(), UMap::new()));
+        umap.apply_update(
+            umap.get_mut(foo.clone())
+                .get_mut(val.clone())
+                .insert(bar.clone(), UMap::new()),
+        );
+        umap.apply_update(
+            umap.get_mut(foo.clone())
+                .get_mut(val.clone())
+                .get_mut(bar.clone())
+                .insert(foo.clone(), 5),
+        );
 
-        umap.apply_update(umap.get_mut(foo.clone()).insert(bar.clone(), 5));
-        assert_eq!(umap.get(&foo).unwrap().get(&bar).unwrap(), 5);
+        assert_eq!(
+            umap.get(&foo)
+                .unwrap()
+                .get(&val)
+                .unwrap()
+                .get(&bar)
+                .unwrap()
+                .get(&foo)
+                .unwrap(),
+            5
+        );
     }
 }
