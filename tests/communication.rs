@@ -108,9 +108,9 @@ mod tests {
 
                 thread::sleep(time::Duration::from_millis(100));
 
-                assert_eq!(map2.get(&foo).unwrap().get(&1).unwrap(), 5);
-                assert_eq!(map2.get(&bar).unwrap().get(&2).unwrap(), 6);
-                assert_eq!(map2.get(&dog).unwrap().get(&3).unwrap(), 7);
+                assert_eq!(map2.get_lock().get_ref(&foo).unwrap().get(&1).unwrap(), 5);
+                assert_eq!(map2.get_lock().get_ref(&bar).unwrap().get(&2).unwrap(), 6);
+                assert_eq!(map2.get_lock().get_ref(&dog).unwrap().get(&3).unwrap(), 7);
 
                 map2.get_mut(foo.clone()).insert(1, 10);
                 map2.get_mut(bar.clone()).insert(2, 11);
@@ -118,9 +118,9 @@ mod tests {
 
                 thread::sleep(time::Duration::from_millis(100));
 
-                assert_eq!(map1.get(&foo).unwrap().get(&1).unwrap(), 10);
-                assert_eq!(map1.get(&bar).unwrap().get(&2).unwrap(), 11);
-                assert_eq!(map1.get(&dog).unwrap().get(&3).unwrap(), 12);
+                assert_eq!(map1.get_lock().get_ref(&foo).unwrap().get(&1).unwrap(), 10);
+                assert_eq!(map1.get_lock().get_ref(&bar).unwrap().get(&2).unwrap(), 11);
+                assert_eq!(map1.get_lock().get_ref(&dog).unwrap().get(&3).unwrap(), 12);
 
                 // Graceful shutdown of server.
                 shutdown_token.cancel();
