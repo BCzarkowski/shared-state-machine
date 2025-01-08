@@ -82,7 +82,7 @@ where
     }
 
     pub fn get(&self, key: &K) -> Option<T> {
-        self.map.get(key).map(|x: &T| x.clone())
+        self.map.get(key).cloned()
     }
 
     pub fn get_ref(&self, key: &K) -> Option<&T> {

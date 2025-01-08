@@ -1,12 +1,6 @@
 use shared_state_machine::smap::SMap;
 use shared_state_machine::synchronizer;
-use shared_state_machine::update::Updatable;
-use shared_state_machine::uvec::UVec;
-use shared_state_machine::{
-    server::{self, Server},
-    smap,
-    umap::UMap,
-};
+use shared_state_machine::{server::Server, umap::UMap};
 use std::{thread, time};
 use tokio_util::sync::CancellationToken;
 
@@ -37,9 +31,9 @@ mod tests {
                 let bar = String::from("bar");
                 let dog = String::from("dog");
 
-                map1.insert(foo.clone(), 1);
-                map1.insert(bar.clone(), 2);
-                map1.insert(dog.clone(), 3);
+                map1.insert(foo.clone(), 1)?;
+                map1.insert(bar.clone(), 2)?;
+                map1.insert(dog.clone(), 3)?;
 
                 thread::sleep(time::Duration::from_millis(100));
 
@@ -47,9 +41,9 @@ mod tests {
                 assert_eq!(map2.get(&bar), Some(2));
                 assert_eq!(map2.get(&dog), Some(3));
 
-                map2.insert(foo.clone(), 9);
-                map2.insert(bar.clone(), 8);
-                map2.insert(dog.clone(), 7);
+                map2.insert(foo.clone(), 9)?;
+                map2.insert(bar.clone(), 8)?;
+                map2.insert(dog.clone(), 7)?;
 
                 thread::sleep(time::Duration::from_millis(100));
 
@@ -98,13 +92,13 @@ mod tests {
                 let bar = String::from("bar");
                 let dog = String::from("dog");
 
-                map1.insert(foo.clone(), UMap::new());
-                map1.insert(bar.clone(), UMap::new());
-                map1.insert(dog.clone(), UMap::new());
+                map1.insert(foo.clone(), UMap::new())?;
+                map1.insert(bar.clone(), UMap::new())?;
+                map1.insert(dog.clone(), UMap::new())?;
 
-                map1.get_mut(foo.clone()).insert(1, 5);
-                map1.get_mut(bar.clone()).insert(2, 6);
-                map1.get_mut(dog.clone()).insert(3, 7);
+                map1.get_mut(foo.clone()).insert(1, 5)?;
+                map1.get_mut(bar.clone()).insert(2, 6)?;
+                map1.get_mut(dog.clone()).insert(3, 7)?;
 
                 thread::sleep(time::Duration::from_millis(100));
 
@@ -112,9 +106,9 @@ mod tests {
                 assert_eq!(map2.get_lock().get_ref(&bar).unwrap().get(&2).unwrap(), 6);
                 assert_eq!(map2.get_lock().get_ref(&dog).unwrap().get(&3).unwrap(), 7);
 
-                map2.get_mut(foo.clone()).insert(1, 10);
-                map2.get_mut(bar.clone()).insert(2, 11);
-                map2.get_mut(dog.clone()).insert(3, 12);
+                map2.get_mut(foo.clone()).insert(1, 10)?;
+                map2.get_mut(bar.clone()).insert(2, 11)?;
+                map2.get_mut(dog.clone()).insert(3, 12)?;
 
                 thread::sleep(time::Duration::from_millis(100));
 
@@ -164,13 +158,13 @@ mod tests {
                 let bar = String::from("bar");
                 let dog = String::from("dog");
 
-                map1.insert(foo.clone(), 1);
-                map1.insert(bar.clone(), 2);
-                map1.insert(dog.clone(), 3);
+                map1.insert(foo.clone(), 1)?;
+                map1.insert(bar.clone(), 2)?;
+                map1.insert(dog.clone(), 3)?;
 
-                map3.insert(foo.clone(), 4);
-                map3.insert(bar.clone(), 5);
-                map3.insert(dog.clone(), 6);
+                map3.insert(foo.clone(), 4)?;
+                map3.insert(bar.clone(), 5)?;
+                map3.insert(dog.clone(), 6)?;
 
                 thread::sleep(time::Duration::from_millis(100));
 
@@ -220,7 +214,7 @@ mod tests {
                 let mut client1: SMap<String, i32> = SMap::new(port.clone(), 1)?;
                 for i in 0..operations {
                     let key = format!("client1_key_{}", i);
-                    client1.insert(key.clone(), i);
+                    client1.insert(key.clone(), i)?;
                     std::thread::sleep(time::Duration::from_millis(5));
                 }
 
@@ -242,7 +236,7 @@ mod tests {
                 let mut client2: SMap<String, i32> = SMap::new(port.clone(), 1)?;
                 for i in 0..operations {
                     let key = format!("client1_key_{}", i);
-                    client2.insert(key.clone(), i * 2);
+                    client2.insert(key.clone(), i * 2)?;
                     std::thread::sleep(time::Duration::from_millis(5));
                 }
 
