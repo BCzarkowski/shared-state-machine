@@ -100,7 +100,7 @@ where
     }
 }
 
-impl<'a, K, T, O, F> UNested<UMap<K, T>, O, F>
+impl<K, T, O, F> UNested<UMap<K, T>, O, F>
 where
     K: Eq + Hash + Clone + Serialize,
     T: Updatable + Clone + Serialize,
