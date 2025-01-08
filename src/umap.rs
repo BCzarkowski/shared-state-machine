@@ -3,6 +3,7 @@ use crate::update;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::marker::PhantomData;
 use update::Updatable;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -93,13 +94,13 @@ where
         key: K,
     ) -> UNested<T, UMapUpdate<K, T>, impl FnOnce(T::Update) -> UMapUpdate<K, T>> {
         UNested {
-            nested: self.get_ref(&key).unwrap(),
             apply_outer: move |update| UMapUpdate::Nested(key, update),
+            inner_type: PhantomData,
         }
     }
 }
 
-impl<'a, K, T, O, F> UNested<'a, UMap<K, T>, O, F>
+impl<'a, K, T, O, F> UNested<UMap<K, T>, O, F>
 where
     K: Eq + Hash + Clone + Serialize,
     T: Updatable + Clone + Serialize,
@@ -107,17 +108,17 @@ where
     F: FnOnce(UMapUpdate<K, T>) -> O,
 {
     pub fn insert(self, key: K, value: T) -> O {
-        (self.apply_outer)(self.nested.insert(key, value))
+        (self.apply_outer)(UMapUpdate::Insert(key, value))
     }
 
     pub fn remove(self, key: K) -> O {
-        (self.apply_outer)(self.nested.remove(key))
+        (self.apply_outer)(UMapUpdate::Remove(key))
     }
 
-    pub fn get_mut(self, key: K) -> UNested<'a, T, O, impl FnOnce(T::Update) -> O> {
+    pub fn get_mut(self, key: K) -> UNested<T, O, impl FnOnce(T::Update) -> O> {
         UNested {
-            nested: self.nested.get_ref(&key).unwrap(),
             apply_outer: move |update| (self.apply_outer)(UMapUpdate::Nested(key, update)),
+            inner_type: PhantomData,
         }
     }
 }
