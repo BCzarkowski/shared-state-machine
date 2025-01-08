@@ -1,6 +1,5 @@
 mod messages;
 mod smap;
-mod snested;
 mod synchronizer;
 mod umap;
 mod umessage;

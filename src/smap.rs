@@ -5,7 +5,6 @@ use crate::update;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::marker::PhantomData;
-use std::sync::MutexGuard;
 use update::Updatable;
 
 pub struct SMap<K, T>
@@ -38,6 +37,10 @@ where
 
     pub fn get(&self, key: &K) -> Option<T> {
         self.syn.get_lock().get(key).clone()
+    }
+
+    pub fn get_lock(&self) -> std::sync::MutexGuard<'_, UMap<K, T>> {
+        self.syn.get_lock()
     }
 
     pub fn get_mut(

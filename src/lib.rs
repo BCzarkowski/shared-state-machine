@@ -1,7 +1,6 @@
 pub mod messages;
 pub mod server;
 pub mod smap;
-pub mod snested;
 pub mod synchronizer;
 pub mod umap;
 pub mod umessage;
