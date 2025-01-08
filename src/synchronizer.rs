@@ -10,7 +10,7 @@ use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc, Mutex};
 use std::{result, thread};
-use tokio_util::bytes::BytesMut;
+use tokio_util::bytes::{self, BytesMut};
 use tokio_util::codec::{Decoder, Encoder, LengthDelimitedCodec};
 use update::Updatable;
 
@@ -76,12 +76,15 @@ fn stream_server_messages<R: Read>(reader: R, sender: Sender<ServerMessage>) -> 
 
             buffer.extend_from_slice(&temp_buffer[..bytes_read]);
 
-            let frame = codec.decode(&mut buffer).map_err(to_internal_error)?;
-
-            if let Some(frame) = frame {
-                let message: ServerMessage =
-                    serde_json::from_slice(&frame).map_err(to_internal_error)?;
-                sender.send(message).map_err(to_internal_error)?;
+            loop {
+                let frame = codec.decode(&mut buffer).map_err(to_internal_error)?;
+                if let Some(frame) = frame {
+                    let message: ServerMessage =
+                        serde_json::from_slice(&frame).map_err(to_internal_error)?;
+                    sender.send(message).map_err(to_internal_error)?;
+                } else {
+                    break;
+                }
             }
             Ok(())
         })();
@@ -114,7 +117,10 @@ where
         let _ = {
             let message = server_message_receiver.recv().map_err(to_internal_error)?;
             match message {
-                ServerMessage::Correct => Ok(()),
+                ServerMessage::Correct => {
+                    dbg!("Connected to the server");
+                    Ok(())
+                }
                 _ => Err(SError::ConnectionError(
                     "Server didn't accept join request".to_owned(),
                 )),
@@ -139,6 +145,7 @@ where
                     let message = server_message_receiver.recv().map_err(to_internal_error)?;
                     match message {
                         ServerMessage::Update(umessage) => {
+                            dbg!("Received update");
                             last_packet_number.store(
                                 umessage.packet_id + 1,
                                 std::sync::atomic::Ordering::Relaxed,
@@ -154,10 +161,14 @@ where
                                 Ok(())
                             }
                         }
-                        ServerMessage::Correct => response_sender
-                            .send(ResponseType::Accepted)
-                            .map_err(to_internal_error),
+                        ServerMessage::Correct => {
+                            dbg!("Received Correct");
+                            response_sender
+                                .send(ResponseType::Accepted)
+                                .map_err(to_internal_error)
+                        }
                         ServerMessage::Error => {
+                            dbg!("Received Error");
                             if can_send_rejected {
                                 can_send_rejected = false;
                                 response_sender
