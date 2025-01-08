@@ -27,16 +27,16 @@ where
         Ok(SMap { syn })
     }
 
-    pub fn insert(&mut self, key: K, value: T) -> () {
+    pub fn insert(&mut self, key: K, value: T) -> synchronizer::Result<()> {
         self.syn.publish_update(UMapUpdate::Insert(key, value))
     }
 
-    pub fn remove(&mut self, key: K) -> () {
+    pub fn remove(&mut self, key: K) -> synchronizer::Result<()> {
         self.syn.publish_update(UMapUpdate::Remove(key))
     }
 
     pub fn get(&self, key: &K) -> Option<T> {
-        self.syn.get_lock().get(key).clone()
+        self.syn.get_lock().get(key)
     }
 
     pub fn get_lock(&self) -> std::sync::MutexGuard<'_, UMap<K, T>> {
@@ -46,9 +46,13 @@ where
     pub fn get_mut(
         &mut self,
         key: K,
-    ) -> UNested<T, (), impl FnOnce(T::Update) -> () + use<'_, K, T>> {
+    ) -> UNested<
+        T,
+        synchronizer::Result<()>,
+        impl FnOnce(T::Update) -> synchronizer::Result<()> + use<'_, K, T>,
+    > {
         UNested {
-            apply_outer: |update| self.syn.publish_update(UMapUpdate::Nested(key, update)),
+            apply_outer: move |update| self.syn.publish_update(UMapUpdate::Nested(key, update)),
             inner_type: PhantomData,
         }
     }

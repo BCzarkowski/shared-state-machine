@@ -190,7 +190,7 @@ where
         Ok(result)
     }
 
-    pub fn publish_update(&mut self, update: T::Update) -> () {
+    pub fn publish_update(&mut self, update: T::Update) -> Result<()> {
         loop {
             let packet_id = self
                 .last_packet_number
@@ -199,15 +199,15 @@ where
             let umessage = UMessage::new(group_id, packet_id, &update).unwrap();
             let message = ClientMessage::Update(umessage);
             let mut tcp_stream = &self.connection;
-            send_client_message(message, &mut tcp_stream);
+            send_client_message(message, &mut tcp_stream)?;
             match self.receiver.recv() {
                 Ok(response) => {
                     if let ResponseType::Accepted = response {
-                        break;
+                        return Ok(());
                     }
                 }
-                Err(_) => {
-                    panic!("TODO");
+                Err(error) => {
+                    return Err(to_internal_error(error));
                 }
             }
         }
