@@ -106,15 +106,15 @@ where
             TcpStream::connect(format!("127.0.0.1:{}", port)).map_err(to_connection_error)?;
         let last_packet_number = Arc::new(AtomicU32::new(0));
         let (server_message_sender, server_message_receiver) = channel();
-        let _ = {
+        {
             let tcp_stream = tcp_stream.try_clone().map_err(to_internal_error)?;
             thread::spawn(|| stream_server_messages(tcp_stream, server_message_sender));
         };
-        let _ = {
+        {
             let mut tcp_stream = &tcp_stream;
             send_client_message(ClientMessage::JoinGroup(group), &mut tcp_stream)
         }?;
-        let _ = {
+        {
             let message = server_message_receiver.recv().map_err(to_internal_error)?;
             match message {
                 ServerMessage::Correct => {
