@@ -84,6 +84,10 @@ where
         self.stack.last().cloned()
     }
 
+    pub fn top_ref(&self) -> Option<&T> {
+        self.stack.last()
+    }
+
     pub fn top_mut(
         &self,
     ) -> UNested<T, UStackUpdate<T>, impl FnOnce(T::Update) -> UStackUpdate<T>> {
