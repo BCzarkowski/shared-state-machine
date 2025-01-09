@@ -42,10 +42,6 @@ fn to_connection_error<T: ToString>(error: T) -> SError {
     SError::ConnectionError(error.to_string())
 }
 
-fn to_server_error<T: ToString>(error: T) -> SError {
-    SError::ServerError(error.to_string())
-}
-
 fn to_internal_error<T: ToString>(error: T) -> SError {
     SError::InternalError(error.to_string())
 }

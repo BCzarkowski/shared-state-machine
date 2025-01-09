@@ -1,5 +1,5 @@
-use shared_state_machine::umap::UMap;
-use shared_state_machine::update::Updatable;
+use shared_state_machine::updateable::umap::UMap;
+use shared_state_machine::updateable::updateable::Updatable;
 
 #[cfg(test)]
 mod tests {

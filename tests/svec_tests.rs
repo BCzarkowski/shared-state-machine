@@ -1,7 +1,7 @@
-use shared_state_machine::svec::SVec;
-use shared_state_machine::synchronizer;
-use shared_state_machine::uvec::UVec;
-use shared_state_machine::{server::Server, umap::UMap};
+use shared_state_machine::communication::synchronizer;
+use shared_state_machine::sync::svec::SVec;
+use shared_state_machine::updateable::uvec::UVec;
+use shared_state_machine::{communication::server::Server, updateable::umap::UMap};
 use std::{thread, time};
 use tokio_util::sync::CancellationToken;
 

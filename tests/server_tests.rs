@@ -1,9 +1,9 @@
 use futures::prelude::*;
 use serde_json::{json, Value};
-use shared_state_machine::messages::{ClientMessage, ServerMessage};
-use shared_state_machine::server::Server;
-use shared_state_machine::umessage::UMessage;
-use shared_state_machine::ustack::UStack;
+use shared_state_machine::communication::messages::{ClientMessage, ServerMessage};
+use shared_state_machine::communication::server::Server;
+use shared_state_machine::communication::umessage::UMessage;
+use shared_state_machine::updateable::ustack::UStack;
 use tokio::net::TcpStream;
 use tokio_serde::formats::*;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
