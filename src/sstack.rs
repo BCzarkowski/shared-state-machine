@@ -1,55 +1,51 @@
 use crate::synchronizer::{self, Synchronizer};
-use crate::umap::{UMap, UMapUpdate};
 use crate::unested::UNested;
 use crate::update;
+use crate::ustack::{UStack, UStackUpdate};
 use serde::{Deserialize, Serialize};
-use std::hash::Hash;
 use std::marker::PhantomData;
 use update::Updatable;
 
-pub struct SMap<K, T>
+pub struct SStack<T>
 where
-    K: Eq + Hash + Clone + Serialize,
     T: Updatable + Clone + Serialize,
     <T as Updatable>::Update: Serialize,
 {
-    syn: Synchronizer<UMap<K, T>>,
+    syn: Synchronizer<UStack<T>>,
 }
 
-impl<K, T> SMap<K, T>
+impl<T> SStack<T>
 where
-    K: Eq + Hash + Clone + Serialize + for<'de> Deserialize<'de> + Send + 'static,
     T: Updatable + Clone + Serialize + for<'de> Deserialize<'de> + Send + 'static,
     <T as Updatable>::Update: Serialize + for<'de> Deserialize<'de> + Send + 'static,
 {
     pub fn new(port: u16, group: u32) -> synchronizer::Result<Self> {
         let syn = Synchronizer::new(port, group)?;
-        Ok(SMap { syn })
+        Ok(SStack { syn })
     }
 
-    pub fn insert(&mut self, key: K, value: T) -> synchronizer::Result<()> {
-        self.syn.publish_update(UMapUpdate::Insert(key, value))
+    pub fn push(&mut self, value: T) -> synchronizer::Result<()> {
+        self.syn.publish_update(UStackUpdate::Push(value))
     }
 
-    pub fn remove(&mut self, key: K) -> synchronizer::Result<()> {
-        self.syn.publish_update(UMapUpdate::Remove(key))
+    pub fn pop(&mut self) -> synchronizer::Result<()> {
+        self.syn.publish_update(UStackUpdate::Pop)
     }
 
-    pub fn get(&self, key: &K) -> Option<T> {
-        self.syn.get_lock().get(key)
+    pub fn top(&self) -> Option<T> {
+        self.syn.get_lock().top()
     }
 
-    pub fn get_lock(&self) -> std::sync::MutexGuard<'_, UMap<K, T>> {
+    pub fn get_lock(&self) -> std::sync::MutexGuard<'_, UStack<T>> {
         self.syn.get_lock()
     }
 
-    pub fn get_mut(
+    pub fn top_mut(
         &mut self,
-        key: K,
     ) -> UNested<T, synchronizer::Result<()>, impl FnOnce(T::Update) -> synchronizer::Result<()> + '_>
     {
         UNested {
-            apply_outer: move |update| self.syn.publish_update(UMapUpdate::Nested(key, update)),
+            apply_outer: move |update| self.syn.publish_update(UStackUpdate::Nested(update)),
             inner_type: PhantomData,
         }
     }

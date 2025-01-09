@@ -108,6 +108,10 @@ where
         self.vec.get(index).cloned()
     }
 
+    pub fn get_ref(&self, index: usize) -> Option<&T> {
+        self.vec.get(index)
+    }
+
     pub fn get_mut(
         &self,
         index: usize,
