@@ -1,10 +1,10 @@
-use crate::synchronizer::{self, Synchronizer};
-use crate::unested::UNested;
-use crate::update;
-use crate::uvec::{UVec, UVecUpdate};
+use crate::communication::synchronizer::{self, Synchronizer};
+use crate::updateable::unested::UNested;
+use crate::updateable::updateable;
+use crate::updateable::uvec::{UVec, UVecUpdate};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use update::Updatable;
+use updateable::Updatable;
 
 pub struct SVec<T>
 where

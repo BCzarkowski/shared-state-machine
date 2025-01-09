@@ -1,8 +1,8 @@
-use crate::unested::UNested;
-use crate::update;
+use crate::updateable::unested::UNested;
+use crate::updateable::updateable;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use update::Updatable;
+use updateable::Updatable;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UVec<T: Updatable>

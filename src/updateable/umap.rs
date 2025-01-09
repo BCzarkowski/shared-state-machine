@@ -1,10 +1,10 @@
-use crate::unested::UNested;
-use crate::update;
+use crate::updateable::unested::UNested;
+use crate::updateable::updateable;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use update::Updatable;
+use updateable::Updatable;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UMap<K, T>

@@ -1,10 +1,10 @@
-use crate::synchronizer::{self, Synchronizer};
-use crate::unested::UNested;
-use crate::update;
-use crate::ustack::{UStack, UStackUpdate};
+use crate::communication::synchronizer::{self, Synchronizer};
+use crate::updateable::unested::UNested;
+use crate::updateable::updateable;
+use crate::updateable::ustack::{UStack, UStackUpdate};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use update::Updatable;
+use updateable::Updatable;
 
 pub struct SStack<T>
 where

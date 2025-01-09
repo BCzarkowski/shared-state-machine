@@ -1,4 +1,4 @@
-use crate::umessage;
+use crate::communication::umessage;
 use serde::{Deserialize, Serialize};
 use umessage::UMessage;
 

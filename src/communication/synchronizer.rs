@@ -1,6 +1,6 @@
-use crate::messages::{ClientMessage, ServerMessage};
-use crate::umessage::UMessage;
-use crate::update;
+use crate::communication::messages::{ClientMessage, ServerMessage};
+use crate::communication::umessage::UMessage;
+use crate::updateable::updateable;
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use std::io::{Read, Write};
@@ -12,7 +12,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::{result, thread};
 use tokio_util::bytes::BytesMut;
 use tokio_util::codec::{Decoder, Encoder, LengthDelimitedCodec};
-use update::Updatable;
+use updateable::Updatable;
 
 pub struct Synchronizer<T>
 where
