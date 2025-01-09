@@ -29,14 +29,14 @@ Incoming changes are synchronized by the server - each client has to send the id
    - Serves multiple clients.
    - Manages groups and synchronization of incoming changes.
    - Broadcasts changes to connected clients.
-2. **Unit-tests**:
-   - Verified the implementation with unit tests.
-3. **`Updatable` trait implementations for primitive types**:
-   - Implemented using a macro, thus reducing boilerplate code.
-4. **Updatable data-structures**:
+2. **Updatable data-structures**:
    - `UMap`, `UVec` and `UStack` with essential methods for `Update` generation.
    - Convenient wrappers for operations on nested types.
    - `Update` sizes are proportional to the sizes of actual changes to the data-structure.
    - Data look-up runtime is comparable with the one of a regular data-structure.
-5. **Synchronizable data-structures**:
+3. **`Updatable` trait implementations for primitive types**:
+   - Implemented using a macro, thus reducing boilerplate code.
+4. **Synchronizable data-structures**:
    - `SMap`, `SVec` and `SStack` with essential methods for state modification.
+5. **Unit-tests**:
+   - Verified the implementation with unit tests.
