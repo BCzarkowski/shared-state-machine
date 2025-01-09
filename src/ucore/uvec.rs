@@ -48,18 +48,10 @@ where
                 self.vec.push(value);
             }
             UVecUpdate::Pop => {
-                if self.vec.is_empty() {
-                    panic!("Update tried to pop from an empty vector!");
-                } else {
-                    self.vec.pop();
-                }
+                self.vec.pop();
             }
             UVecUpdate::Nested(index, nested_update) => {
-                if index >= self.vec.len() {
-                    panic!("Index is greater then vector length!");
-                } else {
-                    self.vec[index].apply_update(nested_update);
-                }
+                self.vec.get_mut(index).unwrap().apply_update(nested_update);
             }
         }
     }
