@@ -1,7 +1,14 @@
+<<<<<<< HEAD
 use shared_state_machine::communication::synchronizer;
 use shared_state_machine::score::svec::SVec;
 use shared_state_machine::ucore::uvec::UVec;
 use shared_state_machine::{communication::server::Server, ucore::umap::UMap};
+=======
+use shared_state_machine::svec::SVec;
+use shared_state_machine::synchronizer;
+use shared_state_machine::uvec::UVec;
+use shared_state_machine::{server::Server, umap::UMap};
+>>>>>>> main
 use std::{thread, time};
 use tokio_util::sync::CancellationToken;
 
