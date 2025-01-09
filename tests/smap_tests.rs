@@ -253,8 +253,16 @@ mod tests {
             }
         });
 
-        client1_handle.await.expect("Client 1 thread panicked");
-        client2_handle.await.expect("Client 2 thread panicked");
+        let (client_result1, client_result2) = tokio::join!(client1_handle, client2_handle);
+        let panic_if_error = |result| {
+            if let Err(e) = result {
+                panic!("Complex test failed: {:?}", e);
+            }
+        };
+
+        panic_if_error(client_result1);
+        panic_if_error(client_result2);
+
         shutdown_token.cancel();
         server_handle.await.unwrap();
     }
