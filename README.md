@@ -1,7 +1,7 @@
 # Shared State Machine
 
 ## Motivation
-In distributed systems with regular deployment, maintaining a consistent shared data-structures among multiple clients is a common challenge.
+In distributed systems with regular deployment, maintaining consistent, shared data-structures among multiple clients is a common challenge.
 
 ## Objective
 Enable multiple clients to share data-structures over the network, with the source-of-truth provided by an independent entity.
