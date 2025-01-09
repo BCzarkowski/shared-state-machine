@@ -46,11 +46,8 @@ where
     pub fn get_mut(
         &mut self,
         key: K,
-    ) -> UNested<
-        T,
-        synchronizer::Result<()>,
-        impl FnOnce(T::Update) -> synchronizer::Result<()> + use<'_, K, T>,
-    > {
+    ) -> UNested<T, synchronizer::Result<()>, impl FnOnce(T::Update) -> synchronizer::Result<()> + '_>
+    {
         UNested {
             apply_outer: move |update| self.syn.publish_update(UMapUpdate::Nested(key, update)),
             inner_type: PhantomData,
