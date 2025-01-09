@@ -22,9 +22,13 @@ create nested structures like `SMap<i32, UVec<String>>`.
 Each data-structure is stored as a queue of atomic changes to it's state.
 Each client (instance of a shared data-structure) subscribes to a group sharing the same structure.
 The server can be perceived as a shared messaging queue, agnostic of it's contents.
+Incoming changes are synchronized by the server - each client has to send the id of the latest received change.
 
 ## Contents
 1. **Async messaging server**:
+   - Serves multiple clients.
+   - Manages groups and synchronization of incoming changes.
+   - Broadcasts changes to connected clients.
 2. **Unit-tests**:
    - Verified the implementation with unit tests.
 3. **`Updatable` trait implementations for primitive types**:
