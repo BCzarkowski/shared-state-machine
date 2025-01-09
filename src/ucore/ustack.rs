@@ -39,7 +39,11 @@ where
                 self.stack.pop();
             }
             UStackUpdate::Nested(nested_update) => {
-                self.stack.last_mut().unwrap().apply_update(nested_update);
+                if self.stack.is_empty() {
+                    panic!("Nested update on empty stack!");
+                } else {
+                    self.stack.last_mut().unwrap().apply_update(nested_update);
+                }
             }
         }
     }

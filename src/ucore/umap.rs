@@ -44,7 +44,11 @@ where
                 self.map.remove(&key);
             }
             UMapUpdate::Nested(key, upd) => {
-                self.map.get_mut(&key).unwrap().apply_update(upd);
+                if !self.map.contains_key(&key) {
+                    panic!("Nested update on non-existent key!");
+                } else {
+                    self.map.get_mut(&key).unwrap().apply_update(upd);
+                }
             }
         }
     }
