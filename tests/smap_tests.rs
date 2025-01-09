@@ -1,6 +1,6 @@
-use shared_state_machine::smap::SMap;
-use shared_state_machine::synchronizer;
-use shared_state_machine::{server::Server, umap::UMap};
+use shared_state_machine::communication::synchronizer;
+use shared_state_machine::score::smap::SMap;
+use shared_state_machine::{communication::server::Server, ucore::umap::UMap};
 use std::{thread, time};
 use tokio_util::sync::CancellationToken;
 

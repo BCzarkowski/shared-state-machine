@@ -1,5 +1,5 @@
-use shared_state_machine::update::Updatable;
-use shared_state_machine::uvec::UVec;
+use shared_state_machine::ucore::updateable::Updatable;
+use shared_state_machine::ucore::uvec::UVec;
 
 #[cfg(test)]
 mod tests {

@@ -1,18 +1,10 @@
 use futures::prelude::*;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use shared_state_machine::messages::{ClientMessage, ServerMessage};
-use shared_state_machine::server::Server;
-use shared_state_machine::umessage::UMessage;
-use shared_state_machine::ustack::UStack;
-use tokio::{
-    io::{
-        AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
-        BufReader,
-    },
-    net::{TcpListener, TcpStream},
-    sync::broadcast,
-};
+use shared_state_machine::communication::messages::{ClientMessage, ServerMessage};
+use shared_state_machine::communication::server::Server;
+use shared_state_machine::communication::umessage::UMessage;
+use shared_state_machine::ucore::ustack::UStack;
+use tokio::net::TcpStream;
 use tokio_serde::formats::*;
 use tokio_util::codec::{FramedRead, FramedWrite, LengthDelimitedCodec};
 use tokio_util::sync::CancellationToken;
@@ -28,7 +20,7 @@ mod tests {
         // (2) Creating and joining groups.
         // (3) Broadcasting messages in a group.
         // (4) Sending history updates.
-        // (5) TODO: Refusing to update when not correct.
+        // (5) Refusing to update when not correct.
 
         //-- (1) --//
 

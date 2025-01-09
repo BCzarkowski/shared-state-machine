@@ -1,11 +1,11 @@
-use crate::synchronizer::{self, Synchronizer};
-use crate::umap::{UMap, UMapUpdate};
-use crate::unested::UNested;
-use crate::update;
+use crate::communication::synchronizer::{self, Synchronizer};
+use crate::ucore::umap::{UMap, UMapUpdate};
+use crate::ucore::unested::UNested;
+use crate::ucore::updateable;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::marker::PhantomData;
-use update::Updatable;
+use updateable::Updatable;
 
 pub struct SMap<K, T>
 where

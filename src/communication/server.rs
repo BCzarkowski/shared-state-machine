@@ -1,4 +1,4 @@
-use crate::messages;
+use crate::communication::messages;
 use futures::prelude::*;
 use messages::{ClientMessage, ServerMessage};
 use serde_json::{json, Value};

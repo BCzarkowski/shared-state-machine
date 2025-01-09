@@ -1,6 +1,6 @@
-use crate::messages::{ClientMessage, ServerMessage};
-use crate::umessage::UMessage;
-use crate::update;
+use crate::communication::messages::{ClientMessage, ServerMessage};
+use crate::communication::umessage::UMessage;
+use crate::ucore::updateable;
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use std::io::{Read, Write};
@@ -10,9 +10,9 @@ use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc, Mutex};
 use std::{result, thread};
-use tokio_util::bytes::{self, BytesMut};
+use tokio_util::bytes::BytesMut;
 use tokio_util::codec::{Decoder, Encoder, LengthDelimitedCodec};
-use update::Updatable;
+use updateable::Updatable;
 
 pub struct Synchronizer<T>
 where
@@ -40,10 +40,6 @@ pub type Result<T> = result::Result<T, SError>;
 
 fn to_connection_error<T: ToString>(error: T) -> SError {
     SError::ConnectionError(error.to_string())
-}
-
-fn to_server_error<T: ToString>(error: T) -> SError {
-    SError::ServerError(error.to_string())
 }
 
 fn to_internal_error<T: ToString>(error: T) -> SError {
@@ -106,15 +102,15 @@ where
             TcpStream::connect(format!("127.0.0.1:{}", port)).map_err(to_connection_error)?;
         let last_packet_number = Arc::new(AtomicU32::new(0));
         let (server_message_sender, server_message_receiver) = channel();
-        let _ = {
+        {
             let tcp_stream = tcp_stream.try_clone().map_err(to_internal_error)?;
             thread::spawn(|| stream_server_messages(tcp_stream, server_message_sender));
         };
-        let _ = {
+        {
             let mut tcp_stream = &tcp_stream;
             send_client_message(ClientMessage::JoinGroup(group), &mut tcp_stream)
         }?;
-        let _ = {
+        {
             let message = server_message_receiver.recv().map_err(to_internal_error)?;
             match message {
                 ServerMessage::Correct => {
@@ -181,7 +177,7 @@ where
                         }
                     }
                 })();
-                if let Err(_) = status {
+                if status.is_err() {
                     let _ = tcp_stream.shutdown(std::net::Shutdown::Both);
                     break;
                 }

@@ -1,8 +1,8 @@
-use crate::unested::UNested;
-use crate::update;
+use crate::ucore::unested::UNested;
+use crate::ucore::updateable;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use update::Updatable;
+use updateable::Updatable;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct UStack<T>
@@ -36,11 +36,7 @@ where
                 self.stack.push(value);
             }
             UStackUpdate::Pop => {
-                if self.stack.is_empty() {
-                    panic!("Update tried to pop from an empty stack!");
-                } else {
-                    self.stack.pop();
-                }
+                self.stack.pop();
             }
             UStackUpdate::Nested(nested_update) => {
                 if self.stack.is_empty() {

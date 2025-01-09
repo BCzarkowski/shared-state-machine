@@ -1,10 +1,10 @@
-use crate::unested::UNested;
-use crate::update;
+use crate::ucore::unested::UNested;
+use crate::ucore::updateable;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use update::Updatable;
+use updateable::Updatable;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UMap<K, T>
@@ -44,7 +44,11 @@ where
                 self.map.remove(&key);
             }
             UMapUpdate::Nested(key, upd) => {
-                self.map.get_mut(&key).unwrap().apply_update(upd);
+                if !self.map.contains_key(&key) {
+                    panic!("Nested update on non-existent key!");
+                } else {
+                    self.map.get_mut(&key).unwrap().apply_update(upd);
+                }
             }
         }
     }
