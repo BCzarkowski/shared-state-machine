@@ -20,7 +20,7 @@ mod tests {
         // (2) Creating and joining groups.
         // (3) Broadcasting messages in a group.
         // (4) Sending history updates.
-        // (5) TODO: Refusing to update when not correct.
+        // (5) Refusing to update when not correct.
 
         //-- (1) --//
 
