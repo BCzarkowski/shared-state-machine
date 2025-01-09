@@ -55,11 +55,8 @@ where
     pub fn get_mut(
         &mut self,
         index: usize,
-    ) -> UNested<
-        T,
-        synchronizer::Result<()>,
-        impl FnOnce(T::Update) -> synchronizer::Result<()> + use<'_, T>,
-    > {
+    ) -> UNested<T, synchronizer::Result<()>, impl FnOnce(T::Update) -> synchronizer::Result<()> + '_>
+    {
         UNested {
             apply_outer: move |update| self.syn.publish_update(UVecUpdate::Nested(index, update)),
             inner_type: PhantomData,

@@ -40,13 +40,10 @@ where
         self.syn.get_lock()
     }
 
-    pub fn get_mut(
+    pub fn top_mut(
         &mut self,
-    ) -> UNested<
-        T,
-        synchronizer::Result<()>,
-        impl FnOnce(T::Update) -> synchronizer::Result<()> + use<'_, T>,
-    > {
+    ) -> UNested<T, synchronizer::Result<()>, impl FnOnce(T::Update) -> synchronizer::Result<()> + '_>
+    {
         UNested {
             apply_outer: move |update| self.syn.publish_update(UStackUpdate::Nested(update)),
             inner_type: PhantomData,
