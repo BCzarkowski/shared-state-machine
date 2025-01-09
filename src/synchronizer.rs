@@ -181,7 +181,7 @@ where
                         }
                     }
                 })();
-                if let Err(_) = status {
+                if status.is_err() {
                     let _ = tcp_stream.shutdown(std::net::Shutdown::Both);
                     break;
                 }
