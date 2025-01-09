@@ -1,6 +1,6 @@
 use shared_state_machine::communication::umessage::UMessage;
-use shared_state_machine::updateable::updateable::Updatable;
-use shared_state_machine::updateable::ustack::{UStack, UStackUpdate};
+use shared_state_machine::ucore::updateable::Updatable;
+use shared_state_machine::ucore::ustack::{UStack, UStackUpdate};
 
 #[cfg(test)]
 mod tests {

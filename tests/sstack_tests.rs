@@ -1,7 +1,7 @@
 use shared_state_machine::communication::synchronizer;
-use shared_state_machine::sync::sstack::SStack;
-use shared_state_machine::updateable::ustack::UStack;
-use shared_state_machine::{communication::server::Server, updateable::umap::UMap};
+use shared_state_machine::score::sstack::SStack;
+use shared_state_machine::ucore::ustack::UStack;
+use shared_state_machine::{communication::server::Server, ucore::umap::UMap};
 use std::{thread, time};
 use tokio_util::sync::CancellationToken;
 

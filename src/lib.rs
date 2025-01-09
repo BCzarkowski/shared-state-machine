@@ -1,3 +1,3 @@
 pub mod communication;
-pub mod sync;
-pub mod updateable;
+pub mod score;
+pub mod ucore;

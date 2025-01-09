@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::updateable::updateable;
+use crate::ucore::updateable;
 use updateable::Updatable;
 
 pub struct UNested<T, O, F>

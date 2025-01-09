@@ -1,6 +1,6 @@
 use crate::communication::messages::{ClientMessage, ServerMessage};
 use crate::communication::umessage::UMessage;
-use crate::updateable::updateable;
+use crate::ucore::updateable;
 use serde::{Deserialize, Serialize};
 use serde_json::to_vec;
 use std::io::{Read, Write};

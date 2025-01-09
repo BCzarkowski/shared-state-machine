@@ -1,7 +1,7 @@
 use crate::communication::synchronizer::{self, Synchronizer};
-use crate::updateable::umap::{UMap, UMapUpdate};
-use crate::updateable::unested::UNested;
-use crate::updateable::updateable;
+use crate::ucore::umap::{UMap, UMapUpdate};
+use crate::ucore::unested::UNested;
+use crate::ucore::updateable;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::marker::PhantomData;
