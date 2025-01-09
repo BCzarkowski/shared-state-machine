@@ -10,7 +10,7 @@ use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc, Mutex};
 use std::{result, thread};
-use tokio_util::bytes::{self, BytesMut};
+use tokio_util::bytes::BytesMut;
 use tokio_util::codec::{Decoder, Encoder, LengthDelimitedCodec};
 use update::Updatable;
 
